@@ -191,7 +191,7 @@ export class AgentCommunication {
 
   getInbox(agentId: string): Message[] {
     const rows = this.db.prepare(`
-      SELECT * FROM messages WHERE to_agent_id = ? AND delivered = 0 ORDER BY created_at DESC LIMIT 50
+      SELECT * FROM messages WHERE to_agent_id = ? ORDER BY created_at DESC LIMIT 50
     `).all(agentId) as Array<{
       id: string;
       from_agent_id: string;
