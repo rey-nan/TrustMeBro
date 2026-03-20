@@ -141,6 +141,19 @@ export function Workflows() {
     }
   };
 
+  const handleDelete = async (workflowId: string) => {
+    if (!confirm('Delete this workflow? This cannot be undone.')) return;
+    
+    try {
+      await fetch(`${API_URL}/api/workflows/${workflowId}`, {
+        method: 'DELETE',
+      });
+      fetchWorkflows();
+    } catch (err) {
+      console.error('Failed to delete workflow:', err);
+    }
+  };
+
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleString();
   };
@@ -237,20 +250,35 @@ export function Workflows() {
                       Running...
                     </button>
                   ) : (
-                    <button
-                      onClick={() => setShowRunModal(wf.id)}
-                      style={{
-                        padding: '8px 16px',
-                        background: 'var(--green)',
-                        color: '#000',
-                        border: 'none',
-                        borderRadius: 4,
-                        cursor: 'pointer',
-                        fontWeight: 'bold',
-                      }}
-                    >
-                      Run
-                    </button>
+                    <>
+                      <button
+                        onClick={() => setShowRunModal(wf.id)}
+                        style={{
+                          padding: '8px 16px',
+                          background: 'var(--green)',
+                          color: '#000',
+                          border: 'none',
+                          borderRadius: 4,
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        Run
+                      </button>
+                      <button
+                        onClick={() => handleDelete(wf.id)}
+                        style={{
+                          padding: '8px 16px',
+                          background: 'transparent',
+                          color: 'var(--red)',
+                          border: '1px solid var(--red)',
+                          borderRadius: 4,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
