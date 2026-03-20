@@ -1,0 +1,27 @@
+{
+  "name": "@trustmebro/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "TrustMeBro CLI - Not Skynet. Probably.",
+  "bin": {
+    "trustmebro": "./dist/index.js",
+    "tmb": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "chalk": "^5.3.0",
+    "ora": "^8.0.1",
+    "prompts": "^2.4.2",
+    "table": "^6.8.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "@types/node": "^20.0.0",
+    "@types/prompts": "^2.4.9",
+    "tsx": "^4.7.0"
+  }
+}

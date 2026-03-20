@@ -1,0 +1,27 @@
+{
+  "name": "trustmebro",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "install:all": "npm install",
+    "build:core": "npm run build --workspace=packages/core",
+    "build:api": "npm run build --workspace=packages/api",
+    "build:dashboard": "npm run build --workspace=packages/dashboard",
+    "build:cli": "npm run build --workspace=packages/cli",
+    "build": "npm run build:core && npm run build:api && npm run build:dashboard && npm run build:cli",
+    "dev:api": "npm run dev --workspace=packages/api",
+    "dev:dashboard": "npm run dev --workspace=packages/dashboard",
+    "dev:cli": "npm run dev --workspace=packages/cli",
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:dashboard\"",
+    "start": "npm run build:core && npm run start --workspace=packages/api",
+    "cli": "node packages/cli/dist/index.js",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.3.3"
+  }
+}
