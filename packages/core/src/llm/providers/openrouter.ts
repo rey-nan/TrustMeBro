@@ -24,8 +24,9 @@ export class OpenRouterProvider implements LLMProvider {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.apiKey}`,
-        'HTTP-Referer': 'https://trustmebro.dev',
         'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://trustmebro.dev',
+        'X-Title': 'TrustMeBro'
       },
       body: JSON.stringify({
         model,
