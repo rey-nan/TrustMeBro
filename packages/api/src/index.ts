@@ -3,9 +3,8 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-config({ path: resolve(__dirname, '../../../.env') });
-
-
+const rootDir = resolve(__dirname, '..', '..', '..');
+config({ path: resolve(rootDir, '.env') });
 
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
