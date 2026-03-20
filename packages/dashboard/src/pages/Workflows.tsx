@@ -741,10 +741,30 @@ function WorkflowBuilder({ onClose, onSave }: WorkflowBuilderProps) {
                     <option key={agent.id} value={agent.id}>{agent.name}</option>
                   ))}
                 </select>
+                <div style={{ marginBottom: 4 }}>
+                  <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+                    <button
+                      type="button"
+                      onClick={() => updateStep(index, { input: step.input + '{{input}}' })}
+                      style={{ padding: '2px 8px', fontSize: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 4, cursor: 'pointer' }}
+                    >
+                      + &#123;&#123;input&#125;&#125;
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateStep(index, { input: step.input + '{{previous}}' })}
+                      style={{ padding: '2px 8px', fontSize: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 4, cursor: 'pointer' }}
+                      disabled={index === 0}
+                      title={index === 0 ? 'Only available from step 2 onwards' : 'Output from previous step'}
+                    >
+                      + &#123;&#123;previous&#125;&#125;
+                    </button>
+                  </div>
+                </div>
                 <textarea
                   value={step.input}
                   onChange={(e) => updateStep(index, { input: e.target.value })}
-                  placeholder="Input (use {{previous}} for previous output)"
+                  placeholder={index === 0 ? 'Type {{input}} or write custom text...' : 'Type {{input}}, {{previous}}, or custom text...'}
                   style={{
                     width: '100%',
                     height: 60,
@@ -970,12 +990,30 @@ function EditWorkflowModal({ workflow, onClose, onSave }: EditWorkflowModalProps
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>Steps</label>
           {steps.map((step, index) => (
-            <div key={index} style={{ display: 'flex', gap: 8, marginBottom: 8, padding: 8, background: 'var(--bg-primary)', borderRadius: 4 }}>
-              <input value={step.id} onChange={(e) => updateStep(index, { id: e.target.value })} placeholder="ID" style={{ width: 80 }} />
+            <div key={index} style={{ display: 'flex', gap: 8, marginBottom: 8, padding: 8, background: 'var(--bg-primary)', borderRadius: 4, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 4, width: '100%', marginBottom: 4 }}>
+                <button
+                  type="button"
+                  onClick={() => updateStep(index, { input: step.input + '{{input}}' })}
+                  style={{ padding: '2px 8px', fontSize: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 4, cursor: 'pointer' }}
+                >
+                  + &#123;&#123;input&#125;&#125;
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateStep(index, { input: step.input + '{{previous}}' })}
+                  style={{ padding: '2px 8px', fontSize: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 4, cursor: 'pointer' }}
+                  disabled={index === 0}
+                  title={index === 0 ? 'Only available from step 2 onwards' : 'Output from previous step'}
+                >
+                  + &#123;&#123;previous&#125;&#125;
+                </button>
+                <span style={{ padding: '2px 8px', fontSize: 10, color: 'var(--text-secondary)' }}>Step {step.id}</span>
+              </div>
               <select value={step.agentId} onChange={(e) => updateStep(index, { agentId: e.target.value })} style={{ flex: 1 }}>
                 {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
-              <input value={step.input} onChange={(e) => updateStep(index, { input: e.target.value })} placeholder="input (use {{previous}} or {{input}})" style={{ flex: 2 }} />
+              <input value={step.input} onChange={(e) => updateStep(index, { input: e.target.value })} placeholder={index === 0 ? 'Type {{input}} or custom text...' : 'Type {{input}}, {{previous}}, or custom text...'} style={{ flex: 2 }} />
               <button onClick={() => removeStep(index)} style={{ padding: '4px 8px', background: 'var(--red)', color: '#000', border: 'none', borderRadius: 4, cursor: 'pointer' }}>X</button>
             </div>
           ))}
