@@ -66,11 +66,13 @@ export class OpenRouterProvider implements LLMProvider {
     if (!this.apiKey) return false;
 
     try {
-      const response = await fetch('https://openrouter.ai/api/v1/auth/key', {
+      const response = await fetch('https://openrouter.ai/api/v1/models', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
         },
+        signal: AbortSignal.timeout(5000),
       });
       return response.ok;
     } catch {
