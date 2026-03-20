@@ -10,6 +10,10 @@ interface WorkflowStep {
   dependsOn?: string[];
   condition?: string;
   timeoutMs?: number;
+  maxRetries?: number;
+  onSuccess?: string;
+  onFailure?: string;
+  validateOutput?: string;
 }
 
 interface Workflow {
@@ -799,6 +803,57 @@ function WorkflowBuilder({ onClose, onSave }: WorkflowBuilderProps) {
                     resize: 'vertical',
                   }}
                 />
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: 10, color: 'var(--text-secondary)', marginBottom: 2 }}>Validate Output</label>
+                    <input
+                      value={step.validateOutput || ''}
+                      onChange={(e) => updateStep(index, { validateOutput: e.target.value || undefined })}
+                      placeholder="contains:VALIDO"
+                      style={{ width: '100%', fontSize: 11 }}
+                    />
+                  </div>
+                  <div style={{ width: 80 }}>
+                    <label style={{ display: 'block', fontSize: 10, color: 'var(--text-secondary)', marginBottom: 2 }}>Max Retries</label>
+                    <input
+                      type="number"
+                      value={step.maxRetries || ''}
+                      onChange={(e) => updateStep(index, { maxRetries: e.target.value ? parseInt(e.target.value) : undefined })}
+                      placeholder="0"
+                      min="0"
+                      max="10"
+                      style={{ width: '100%', fontSize: 11 }}
+                    />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: 10, color: 'var(--text-secondary)', marginBottom: 2 }}>On Success →</label>
+                    <select
+                      value={step.onSuccess || ''}
+                      onChange={(e) => updateStep(index, { onSuccess: e.target.value || undefined })}
+                      style={{ width: '100%', fontSize: 11 }}
+                    >
+                      <option value="">Next step</option>
+                      {steps.filter((_, i) => i !== index).map((s) => (
+                        <option key={s.id} value={s.id}>{s.id}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: 10, color: 'var(--text-secondary)', marginBottom: 2 }}>On Failure →</label>
+                    <select
+                      value={step.onFailure || ''}
+                      onChange={(e) => updateStep(index, { onFailure: e.target.value || undefined })}
+                      style={{ width: '100%', fontSize: 11 }}
+                    >
+                      <option value="">Fail workflow</option>
+                      {steps.filter((_, i) => i !== index).map((s) => (
+                        <option key={s.id} value={s.id}>{s.id}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -1038,6 +1093,55 @@ function EditWorkflowModal({ workflow, onClose, onSave }: EditWorkflowModalProps
               </select>
               <input value={step.input} onChange={(e) => updateStep(index, { input: e.target.value })} placeholder={index === 0 ? 'Type {{input}} or custom text...' : 'Type {{input}}, {{previous}}, or custom text...'} style={{ flex: 2 }} />
               <button onClick={() => removeStep(index)} style={{ padding: '4px 8px', background: 'var(--red)', color: '#000', border: 'none', borderRadius: 4, cursor: 'pointer' }}>X</button>
+              <div style={{ width: '100%', display: 'flex', gap: 8, marginTop: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 10, color: 'var(--text-secondary)', marginBottom: 2 }}>Validate Output</label>
+                  <input
+                    value={step.validateOutput || ''}
+                    onChange={(e) => updateStep(index, { validateOutput: e.target.value || undefined })}
+                    placeholder="contains:VALIDO"
+                    style={{ width: '100%', fontSize: 11 }}
+                  />
+                </div>
+                <div style={{ width: 80 }}>
+                  <label style={{ display: 'block', fontSize: 10, color: 'var(--text-secondary)', marginBottom: 2 }}>Max Retries</label>
+                  <input
+                    type="number"
+                    value={step.maxRetries || ''}
+                    onChange={(e) => updateStep(index, { maxRetries: e.target.value ? parseInt(e.target.value) : undefined })}
+                    placeholder="0"
+                    min="0"
+                    max="10"
+                    style={{ width: '100%', fontSize: 11 }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 10, color: 'var(--text-secondary)', marginBottom: 2 }}>On Success →</label>
+                  <select
+                    value={step.onSuccess || ''}
+                    onChange={(e) => updateStep(index, { onSuccess: e.target.value || undefined })}
+                    style={{ width: '100%', fontSize: 11 }}
+                  >
+                    <option value="">Next step</option>
+                    {steps.filter((_, i) => i !== index).map((s) => (
+                      <option key={s.id} value={s.id}>{s.id}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 10, color: 'var(--text-secondary)', marginBottom: 2 }}>On Failure →</label>
+                  <select
+                    value={step.onFailure || ''}
+                    onChange={(e) => updateStep(index, { onFailure: e.target.value || undefined })}
+                    style={{ width: '100%', fontSize: 11 }}
+                  >
+                    <option value="">Fail workflow</option>
+                    {steps.filter((_, i) => i !== index).map((s) => (
+                      <option key={s.id} value={s.id}>{s.id}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
           ))}
           <button onClick={addStep} style={{ padding: '4px 12px', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: 4, cursor: 'pointer' }}>+ Add Step</button>
