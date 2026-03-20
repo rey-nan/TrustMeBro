@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api/client';
+import { useWebSocket } from '../hooks/useWebSocket';
 import { TaskList } from '../components/TaskList';
 
 interface Task {
@@ -31,10 +32,32 @@ export function Tasks() {
   const [statusFilter, setStatusFilter] = useState('');
   const [agentFilter, setAgentFilter] = useState('');
   const [loading, setLoading] = useState(false);
+  const { lastMessage } = useWebSocket();
 
   useEffect(() => {
     loadTasks();
   }, [page, statusFilter, agentFilter]);
+
+  // Listen for task updates via WebSocket
+  useEffect(() => {
+    if (!lastMessage) return;
+
+    if (lastMessage.type === 'task:completed' || lastMessage.type === 'task:failed') {
+      const { taskId, output, error } = lastMessage.payload as { taskId: string; output?: string; error?: string };
+      setTasks(prev => prev.map(t => 
+        t.id === taskId 
+          ? { 
+              ...t, 
+              status: lastMessage.type === 'task:completed' ? 'success' : 'failed',
+              output: output || t.output,
+              error: error || t.error,
+              completed_at: Date.now(),
+              duration_ms: Date.now() - t.created_at
+            }
+          : t
+      ));
+    }
+  }, [lastMessage]);
 
   const loadTasks = async () => {
     setLoading(true);
