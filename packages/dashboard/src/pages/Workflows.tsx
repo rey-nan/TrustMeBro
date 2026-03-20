@@ -260,7 +260,7 @@ export function Workflows() {
                   <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>
                     Last run: {formatDate(recentRuns.get(wf.id)!.startedAt)}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                     <span
                       style={{
                         width: 8,
@@ -278,6 +278,21 @@ export function Workflows() {
                       </span>
                     )}
                   </div>
+                  {(recentRuns.get(wf.id)!.finalOutput || recentRuns.get(wf.id)!.error) && (
+                    <div style={{
+                      marginTop: 8,
+                      padding: 8,
+                      background: 'var(--bg-secondary)',
+                      borderRadius: 4,
+                      fontSize: 12,
+                      whiteSpace: 'pre-wrap',
+                      maxHeight: 150,
+                      overflow: 'auto',
+                      color: recentRuns.get(wf.id)!.error ? 'var(--red)' : 'var(--text-primary)',
+                    }}>
+                      {recentRuns.get(wf.id)!.error || recentRuns.get(wf.id)!.finalOutput}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
