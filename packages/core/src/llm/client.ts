@@ -29,6 +29,8 @@ export class LLMClient {
       defaultModel: process.env.LLM_DEFAULT_MODEL,
     };
 
+
+
     this.currentProviderName = providerName;
     this.provider = this.createProvider(providerName, config);
   }

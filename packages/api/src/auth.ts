@@ -1,6 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 
-const PUBLIC_ROUTES = ['/health', '/api/status', '/api/providers'];
+const PUBLIC_ROUTES = ['/health', '/api/status', '/api/providers', '/api/soul/generate'];
 
 export async function authHook(
   request: FastifyRequest,
