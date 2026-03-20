@@ -1,4 +1,16 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const envPath = path.resolve(__dirname, '../../.env');
+dotenv.config({ path: envPath });
+
+console.log('[DEBUG] LLM_PROVIDER:', process.env.LLM_PROVIDER);
+console.log('[DEBUG] LLM_API_KEY exists:', !!process.env.LLM_API_KEY);
+console.log('[DEBUG] .env path:', envPath);
+
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
