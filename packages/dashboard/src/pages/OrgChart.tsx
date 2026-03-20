@@ -40,6 +40,7 @@ export function OrgChart() {
   const [loading, setLoading] = useState(true);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
+  const [showDeptForm, setShowDeptForm] = useState(false);
   const [connectedAgents, setConnectedAgents] = useState<Set<string>>(new Set());
 
   const { lastMessage } = useWebSocket();
@@ -273,6 +274,73 @@ export function OrgChart() {
     );
   };
 
+  const renderDeptForm = () => {
+    if (!showDeptForm) return null;
+
+    return (
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.8)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 100,
+      }}>
+        <div style={{
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border-color)',
+          borderRadius: 4,
+          padding: 24,
+          width: 500,
+          maxWidth: '90vw',
+        }}>
+          <h2 style={{ marginBottom: 24, color: 'var(--green)' }}>Create Department</h2>
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
+            const deptId = (formData.get('name') as string).toLowerCase().replace(/\s+/g, '-') + '-' + Date.now().toString(36);
+            await api.post('/api/departments', {
+              id: deptId,
+              name: formData.get('name'),
+              description: formData.get('description'),
+              color: formData.get('color'),
+              leadAgentId: formData.get('leadAgentId') || undefined,
+            });
+            setShowDeptForm(false);
+            loadOrgData();
+          }}>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>Name *</label>
+              <input name="name" type="text" required placeholder="Engineering" style={{ width: '100%' }} />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>Description</label>
+              <input name="description" type="text" placeholder="What this department does" style={{ width: '100%' }} />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>Color</label>
+              <input name="color" type="color" defaultValue="#00ff88" />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>Lead Agent</label>
+              <select name="leadAgentId" defaultValue="">
+                <option value="">None</option>
+                {Object.values(orgData.agents).map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => setShowDeptForm(false)}>Cancel</button>
+              <button type="submit">Create</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-secondary)' }}>
@@ -286,7 +354,14 @@ export function OrgChart() {
 
   return (
     <div>
-      <h1 style={{ marginBottom: 24, color: 'var(--green)' }}>Organization Chart</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <h1 style={{ color: 'var(--green)' }}>Organization Chart</h1>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setShowDeptForm(true)}>Create Department</button>
+        </div>
+      </div>
+
+      {showDeptForm && renderDeptForm()}
 
       {showTaskForm && selectedAgent && (
         <TaskForm
