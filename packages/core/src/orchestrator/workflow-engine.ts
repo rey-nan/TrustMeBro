@@ -180,6 +180,23 @@ export class WorkflowEngine {
 
       run.stepResults[step.id ?? 'unknown'] = result;
 
+      // Send message to next agent if there is one
+      if (result.status === 'success' && currentStepIndex < definition.steps.length - 1) {
+        const nextStep = definition.steps[currentStepIndex + 1];
+        if (nextStep && step) {
+          try {
+            this.communication.send(
+              step.agentId,
+              nextStep.agentId,
+              `[Workflow: ${definition.name}] Result from ${step.id}:\n${result.output.substring(0, 500)}`,
+              `workflow-${run.id}`
+            );
+          } catch (err) {
+            this.logger.warn({ err }, 'Failed to send inter-step message');
+          }
+        }
+      }
+
       if (result.status === 'failed' || result.status === 'cancelled') {
         // Go to onFailure step if defined
         if (step.onFailure) {
