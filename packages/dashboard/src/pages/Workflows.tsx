@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -49,11 +50,38 @@ export function Workflows() {
   const [showRunModal, setShowRunModal] = useState<string | null>(null);
   const [runInput, setRunInput] = useState('');
   const [loading, setLoading] = useState(true);
+  const [runningWorkflow, setRunningWorkflow] = useState<string | null>(null);
+  const { lastMessage } = useWebSocket();
 
   useEffect(() => {
     fetchWorkflows();
     fetchRecentRuns();
   }, []);
+
+  // Listen for workflow completion via WebSocket
+  useEffect(() => {
+    if (lastMessage?.type === 'workflow:completed') {
+      const payload = lastMessage.payload as { workflowId: string; status: string; finalOutput?: string; error?: string; totalTokens: number };
+      setRunningWorkflow(null);
+      setRecentRuns(prev => {
+        const next = new Map(prev);
+        next.set(payload.workflowId, {
+          id: '',
+          workflowId: payload.workflowId,
+          status: payload.status as WorkflowRun['status'],
+          input: '',
+          finalOutput: payload.finalOutput,
+          error: payload.error,
+          startedAt: Date.now(),
+          completedAt: Date.now(),
+          totalTokens: payload.totalTokens,
+        });
+        return next;
+      });
+      // Refresh from API
+      fetchRecentRuns();
+    }
+  }, [lastMessage]);
 
   const fetchWorkflows = async () => {
     try {
@@ -92,18 +120,23 @@ export function Workflows() {
     if (!runInput.trim()) return;
     
     try {
+      setRunningWorkflow(workflowId);
+      setShowRunModal(null);
+      setRunInput('');
+      
       const res = await fetch(`${API_URL}/api/workflows/${workflowId}/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ input: runInput }),
       });
       const data = await res.json();
-      if (data.success) {
-        setShowRunModal(null);
-        setRunInput('');
-        fetchRecentRuns();
+      if (!data.success) {
+        setRunningWorkflow(null);
+        console.error('Failed to run workflow:', data.error);
       }
+      // Don't clear running state here - wait for WebSocket
     } catch (err) {
+      setRunningWorkflow(null);
       console.error('Failed to run workflow:', err);
     }
   };
@@ -188,20 +221,37 @@ export function Workflows() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    onClick={() => setShowRunModal(wf.id)}
-                    style={{
-                      padding: '8px 16px',
-                      background: 'var(--green)',
-                      color: '#000',
-                      border: 'none',
-                      borderRadius: 4,
-                      cursor: 'pointer',
-                      fontWeight: 'bold',
-                    }}
-                  >
-                    Run
-                  </button>
+                  {runningWorkflow === wf.id ? (
+                    <button
+                      disabled
+                      style={{
+                        padding: '8px 16px',
+                        background: '#4488ff',
+                        color: '#000',
+                        border: 'none',
+                        borderRadius: 4,
+                        cursor: 'not-allowed',
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      Running...
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setShowRunModal(wf.id)}
+                      style={{
+                        padding: '8px 16px',
+                        background: 'var(--green)',
+                        color: '#000',
+                        border: 'none',
+                        borderRadius: 4,
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      Run
+                    </button>
+                  )}
                 </div>
               </div>
 
