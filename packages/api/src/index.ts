@@ -29,6 +29,7 @@ import {
   GitSkill,
   ScriptSkill,
   CustomSkillRegistry,
+  MetaAgent,
 } from '@trustmebro/core';
 import { db } from './db.js';
 import { authHook } from './auth.js';
@@ -43,6 +44,7 @@ import { knowledgeRoutes, setKnowledgeBase } from './routes/knowledge.js';
 import { skillsRoutes, setSkillRegistry, setToolExecutor, setCustomSkillRegistry } from './routes/skills.js';
 import { sandboxRoutes } from './routes/sandbox.js';
 import { workflowsRoutes, setWorkflowEngine } from './routes/workflows.js';
+import { metaRoutes, setMetaAgent } from './routes/meta.js';
 import { handleConnection, broadcast } from './websocket/handler.js';
 
 const logger = pino({ name: 'TrustMeBro API' });
@@ -146,6 +148,17 @@ async function main() {
   setToolExecutor(toolExecutor);
   setCustomSkillRegistry(customSkillRegistry);
 
+  // Initialize Meta-Agent
+  const metaAgent = new MetaAgent({
+    model: process.env.LLM_DEFAULT_MODEL || 'openai/gpt-3.5-turbo',
+    provider: process.env.LLM_PROVIDER || 'openrouter',
+    apiKey: process.env.LLM_API_KEY,
+    baseUrl: process.env.LLM_BASE_URL,
+    maxTurns: 10,
+    verbose: false,
+  });
+  setMetaAgent(metaAgent);
+
   // Register existing custom skills
   for (const customDef of customSkillRegistry.list()) {
     const customSkill = customSkillRegistry.toSkill(customDef.id);
@@ -169,6 +182,7 @@ async function main() {
   await fastify.register(skillsRoutes);
   await fastify.register(sandboxRoutes);
   await fastify.register(workflowsRoutes);
+  await fastify.register(metaRoutes);
 
   fastify.get('/ws', { websocket: true }, (connection) => {
     handleConnection(connection.socket);

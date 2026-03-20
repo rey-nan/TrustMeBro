@@ -12,6 +12,7 @@ import { createDeptCommand } from './commands/dept.js';
 import { createStatusCommand } from './commands/status.js';
 import { createWorkflowCommand } from './commands/workflow.js';
 import { createSetupCommand } from './commands/setup.js';
+import { createMetaCommand } from './commands/meta.js';
 import chalk from 'chalk';
 import fs from 'fs';
 import path from 'path';
@@ -74,6 +75,7 @@ async function main(): Promise<void> {
   program.addCommand(createDeptCommand(client, jsonFlag));
   program.addCommand(createStatusCommand(client, jsonFlag));
   program.addCommand(createWorkflowCommand(client));
+  program.addCommand(createMetaCommand(client));
 
   program.on('command:*', () => {
     console.error(chalk.red(`Invalid command: ${program.args.join(' ')}`));

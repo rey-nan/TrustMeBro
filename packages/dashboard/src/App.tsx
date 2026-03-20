@@ -12,9 +12,10 @@ import { AgentInbox } from './pages/AgentInbox';
 import { KnowledgeBase } from './pages/KnowledgeBase';
 import { Skills } from './pages/Skills';
 import { Workflows } from './pages/Workflows';
+import { MetaAgent } from './pages/MetaAgent';
 import { wsClient } from './api/client';
 
-type Page = 'dashboard' | 'agents' | 'agent-builder' | 'org-chart' | 'tasks' | 'workflows' | 'skills' | 'consumption' | 'settings' | 'activity-feed' | 'agent-inbox' | 'knowledge-base';
+type Page = 'meta-agent' | 'dashboard' | 'agents' | 'agent-builder' | 'org-chart' | 'tasks' | 'workflows' | 'skills' | 'consumption' | 'settings' | 'activity-feed' | 'agent-inbox' | 'knowledge-base';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -84,6 +85,8 @@ export default function App() {
 
   const renderPage = () => {
     switch (currentPage) {
+      case 'meta-agent':
+        return <MetaAgent />;
       case 'dashboard':
         return <Dashboard />;
       case 'agents':

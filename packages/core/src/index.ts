@@ -5,3 +5,4 @@ export * from './knowledge/index';
 export * from './skills/index';
 export * from './sandbox/index';
 export * from './orchestrator/index';
+export * from './meta/index';

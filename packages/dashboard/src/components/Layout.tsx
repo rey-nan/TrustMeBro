@@ -16,6 +16,7 @@ interface NavItem {
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const { connected } = useWebSocket();
   const [navItems, setNavItems] = useState<NavItem[]>([
+    { id: 'meta-agent', label: '🧠 Meta-Agent' },
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'agents', label: 'Agents' },
     { id: 'agent-builder', label: '⚡ Agent Builder' },
