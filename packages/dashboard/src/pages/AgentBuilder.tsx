@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api/client';
+import { TooltipField } from '../components/Tooltip';
 
 interface Department {
   id: string;
@@ -67,6 +68,8 @@ export function AgentBuilder() {
   const [generating, setGenerating] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [generateSuccess, setGenerateSuccess] = useState(false);
+  const [mode, setMode] = useState<'iniciante' | 'avancado'>('iniciante');
 
   const [form, setForm] = useState<AgentForm>({
     name: '',
@@ -123,6 +126,7 @@ export function AgentBuilder() {
 
     setGenerating(true);
     setError(null);
+    setGenerateSuccess(false);
 
     try {
       const res = await api.post<{ soul: SOUL; systemPrompt: string }>('/api/soul/generate', {
@@ -136,6 +140,11 @@ export function AgentBuilder() {
           ...prev,
           soul: res.data!.soul,
         }));
+        setGenerateSuccess(true);
+        setTimeout(() => {
+          setStep(2);
+          setGenerateSuccess(false);
+        }, 800);
       } else {
         setError(res.error || 'Failed to generate SOUL');
       }
@@ -208,6 +217,7 @@ ${soul.limitations.length > 0 ? soul.limitations.map((l) => `- ${l}`).join('\n')
             skillIds: form.skillIds,
           });
         }
+        alert('✓ Agent created successfully!');
         window.location.hash = '#/agents';
         window.location.reload();
       } else {
@@ -221,27 +231,46 @@ ${soul.limitations.length > 0 ? soul.limitations.map((l) => `- ${l}`).join('\n')
   };
 
   const renderStepIndicator = () => (
-    <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 32 }}>
-      {[1, 2, 3, 4, 5, 6].map((s) => (
-        <div
-          key={s}
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 14,
-            fontWeight: 'bold',
-            background: step >= s ? 'var(--green)' : 'var(--bg-secondary)',
-            color: step >= s ? 'var(--bg-primary)' : 'var(--text-secondary)',
-            border: '1px solid var(--border-color)',
-          }}
-        >
-          {s}
-        </div>
-      ))}
+    <div style={{ marginBottom: 32 }}>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
+        {[1, 2, 3, 4, 5, 6].map((s) => (
+          <div
+            key={s}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 14,
+              fontWeight: 'bold',
+              background: step >= s ? 'var(--green)' : 'var(--bg-secondary)',
+              color: step >= s ? 'var(--bg-primary)' : 'var(--text-secondary)',
+              border: '1px solid var(--border-color)',
+            }}
+          >
+            {s}
+          </div>
+        ))}
+      </div>
+      <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-secondary)' }}>
+        Step {step} of 6
+      </div>
+      <div style={{
+        marginTop: 8,
+        height: 4,
+        background: 'var(--bg-secondary)',
+        borderRadius: 2,
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          width: `${(step / 6) * 100}%`,
+          height: '100%',
+          background: 'var(--green)',
+          transition: 'width 0.3s ease',
+        }} />
+      </div>
     </div>
   );
 
@@ -249,44 +278,32 @@ ${soul.limitations.length > 0 ? soul.limitations.map((l) => `- ${l}`).join('\n')
     <div>
       <h2 style={{ marginBottom: 24 }}>Step 1: Identity</h2>
       <div style={{ display: 'grid', gap: 16 }}>
-        <div>
-          <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
-            Agent Name *
-          </label>
+        <TooltipField label="Agent Name" tooltip="Nome único do agente. Usado como identificador no sistema." required>
           <input
             type="text"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             placeholder="e.g., Max the Coder"
           />
-        </div>
-        <div>
-          <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
-            Role *
-          </label>
+        </TooltipField>
+        <TooltipField label="Role" tooltip="Função principal do agente. Ex: Especialista em Backend, Analista de Marketing." required>
           <input
             type="text"
             value={form.role}
             onChange={(e) => setForm({ ...form, role: e.target.value })}
             placeholder="e.g., Senior Software Engineer"
           />
-        </div>
-        <div>
-          <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
-            Description
-          </label>
+        </TooltipField>
+        <TooltipField label="Description" tooltip="Descreva o que esse agente faz. Quanto mais detalhado, melhor a SOUL gerada.">
           <textarea
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             placeholder="What does this agent do?"
             style={{ minHeight: 80 }}
           />
-        </div>
+        </TooltipField>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
-              Level
-            </label>
+          <TooltipField label="Level" tooltip="Intern: precisa de aprovação. Specialist: age independente. Lead: pode delegar tarefas.">
             <select
               value={form.level}
               onChange={(e) => setForm({ ...form, level: e.target.value as 'intern' | 'specialist' | 'lead' })}
@@ -295,11 +312,8 @@ ${soul.limitations.length > 0 ? soul.limitations.map((l) => `- ${l}`).join('\n')
               <option value="specialist">Specialist</option>
               <option value="lead">Lead</option>
             </select>
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
-              Department
-            </label>
+          </TooltipField>
+          <TooltipField label="Department" tooltip="Grupo organizacional ao qual o agente pertence.">
             <select
               value={form.departmentId}
               onChange={(e) => setForm({ ...form, departmentId: e.target.value })}
@@ -309,10 +323,17 @@ ${soul.limitations.length > 0 ? soul.limitations.map((l) => `- ${l}`).join('\n')
                 <option key={d.id} value={d.id}>{d.name}</option>
               ))}
             </select>
-          </div>
+          </TooltipField>
         </div>
-        <button onClick={handleGenerateSOUL} disabled={generating || !form.name || !form.role}>
-          {generating ? 'Generating...' : '✨ Generate SOUL'}
+        <button 
+          onClick={handleGenerateSOUL} 
+          disabled={generating || !form.name || !form.role}
+          style={{
+            background: generateSuccess ? 'var(--green)' : undefined,
+            color: generateSuccess ? '#000' : undefined,
+          }}
+        >
+          {generating ? '⏳ Generating...' : generateSuccess ? '✓ SOUL Generated!' : '✨ Generate SOUL'}
         </button>
       </div>
     </div>
@@ -322,21 +343,15 @@ ${soul.limitations.length > 0 ? soul.limitations.map((l) => `- ${l}`).join('\n')
     <div>
       <h2 style={{ marginBottom: 24 }}>Step 2: Personality (SOUL)</h2>
       <div style={{ display: 'grid', gap: 16 }}>
-        <div>
-          <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
-            Personality
-          </label>
+        <TooltipField label="Personality" tooltip="Como o agente se comporta e se comunica. Define o 'caráter' dele.">
           <textarea
             value={form.soul.personality}
             onChange={(e) => setForm({ ...form, soul: { ...form.soul, personality: e.target.value } })}
             placeholder="Describe the agent's personality..."
             style={{ minHeight: 80 }}
           />
-        </div>
-        <div>
-          <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
-            Expertise (comma-separated)
-          </label>
+        </TooltipField>
+        <TooltipField label="Expertise" tooltip="Áreas de conhecimento do agente. Separe por vírgula.">
           <input
             type="text"
             value={form.soul.expertise.join(', ')}
@@ -346,22 +361,16 @@ ${soul.limitations.length > 0 ? soul.limitations.map((l) => `- ${l}`).join('\n')
             })}
             placeholder="JavaScript, React, Node.js"
           />
-        </div>
-        <div>
-          <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
-            Work Style
-          </label>
+        </TooltipField>
+        <TooltipField label="Work Style" tooltip="Como o agente aborda os problemas. Ex: planeja antes de agir, verifica sempre.">
           <textarea
             value={form.soul.workStyle}
             onChange={(e) => setForm({ ...form, soul: { ...form.soul, workStyle: e.target.value } })}
             placeholder="How does this agent approach work?"
             style={{ minHeight: 60 }}
           />
-        </div>
-        <div>
-          <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
-            Values (comma-separated)
-          </label>
+        </TooltipField>
+        <TooltipField label="Values" tooltip="Princípios que guiam as decisões do agente. Ex: qualidade, velocidade, segurança.">
           <input
             type="text"
             value={form.soul.values.join(', ')}
@@ -371,22 +380,16 @@ ${soul.limitations.length > 0 ? soul.limitations.map((l) => `- ${l}`).join('\n')
             })}
             placeholder="Quality, Speed, Collaboration"
           />
-        </div>
-        <div>
-          <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
-            Communication Style
-          </label>
+        </TooltipField>
+        <TooltipField label="Communication Style" tooltip="Como o agente escreve e se expressa nas respostas.">
           <textarea
             value={form.soul.communicationStyle}
             onChange={(e) => setForm({ ...form, soul: { ...form.soul, communicationStyle: e.target.value } })}
             placeholder="How does this agent communicate?"
             style={{ minHeight: 60 }}
           />
-        </div>
-        <div>
-          <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
-            Limitations (comma-separated)
-          </label>
+        </TooltipField>
+        <TooltipField label="Limitations" tooltip="O que o agente NÃO deve fazer ou decidir sozinho.">
           <input
             type="text"
             value={form.soul.limitations.join(', ')}
@@ -396,7 +399,7 @@ ${soul.limitations.length > 0 ? soul.limitations.map((l) => `- ${l}`).join('\n')
             })}
             placeholder="Cannot access internet, Limited context window"
           />
-        </div>
+        </TooltipField>
 
         <div style={{
           background: 'var(--bg-primary)',
@@ -417,12 +420,35 @@ ${soul.limitations.length > 0 ? soul.limitations.map((l) => `- ${l}`).join('\n')
 
   const renderStep3 = () => (
     <div>
-      <h2 style={{ marginBottom: 24 }}>Step 3: Model Configuration</h2>
+      <h2 style={{ marginBottom: 16 }}>Step 3: Model Configuration</h2>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+        <button
+          onClick={() => setMode('iniciante')}
+          style={{
+            padding: '6px 16px',
+            background: mode === 'iniciante' ? 'var(--green)' : 'transparent',
+            color: mode === 'iniciante' ? '#000' : 'var(--text-secondary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: 4,
+          }}
+        >
+          Iniciante
+        </button>
+        <button
+          onClick={() => setMode('avancado')}
+          style={{
+            padding: '6px 16px',
+            background: mode === 'avancado' ? 'var(--green)' : 'transparent',
+            color: mode === 'avancado' ? '#000' : 'var(--text-secondary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: 4,
+          }}
+        >
+          Avançado
+        </button>
+      </div>
       <div style={{ display: 'grid', gap: 16 }}>
-        <div>
-          <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
-            Provider
-          </label>
+        <TooltipField label="Provider" tooltip="Serviço de LLM que o agente vai usar. OpenRouter recomendado para modelos gratuitos.">
           <select
             value={form.provider}
             onChange={(e) => setForm({ ...form, provider: e.target.value, model: PROVIDER_MODELS[e.target.value] ?? '' })}
@@ -432,22 +458,16 @@ ${soul.limitations.length > 0 ? soul.limitations.map((l) => `- ${l}`).join('\n')
             <option value="groq">Groq</option>
             <option value="openai-compatible">OpenAI Compatible</option>
           </select>
-        </div>
-        <div>
-          <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
-            Model
-          </label>
+        </TooltipField>
+        <TooltipField label="Model" tooltip="Modelo específico de IA. Recomendado: xiaomi/mimo-v2-flash (gratuito e capaz).">
           <input
             type="text"
             value={form.model}
             onChange={(e) => setForm({ ...form, model: e.target.value })}
             placeholder={`e.g., ${PROVIDER_MODELS[form.provider]}`}
           />
-        </div>
-        <div>
-          <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
-            Temperature: {form.temperature}
-          </label>
+        </TooltipField>
+        <TooltipField label={`Temperature: ${form.temperature}`} tooltip="0 = respostas precisas e previsíveis. 1 = respostas criativas e variadas.">
           <input
             type="range"
             min="0"
@@ -461,39 +481,32 @@ ${soul.limitations.length > 0 ? soul.limitations.map((l) => `- ${l}`).join('\n')
             <span>Precise</span>
             <span>Creative</span>
           </div>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
-              Max Tokens
-            </label>
-            <input
-              type="number"
-              value={form.maxTokens}
-              onChange={(e) => setForm({ ...form, maxTokens: parseInt(e.target.value) })}
-            />
+        </TooltipField>
+        {mode === 'avancado' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+            <TooltipField label="Max Tokens" tooltip="Tamanho máximo da resposta. 2048 é suficiente para maioria das tarefas.">
+              <input
+                type="number"
+                value={form.maxTokens}
+                onChange={(e) => setForm({ ...form, maxTokens: parseInt(e.target.value) })}
+              />
+            </TooltipField>
+            <TooltipField label="Timeout (ms)" tooltip="Tempo máximo de espera em ms. 60000 = 60 segundos.">
+              <input
+                type="number"
+                value={form.timeoutMs}
+                onChange={(e) => setForm({ ...form, timeoutMs: parseInt(e.target.value) })}
+              />
+            </TooltipField>
+            <TooltipField label="Max Retries" tooltip="Quantas vezes tentar novamente se falhar. 3 é um bom padrão.">
+              <input
+                type="number"
+                value={form.maxRetries}
+                onChange={(e) => setForm({ ...form, maxRetries: parseInt(e.target.value) })}
+              />
+            </TooltipField>
           </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
-              Timeout (ms)
-            </label>
-            <input
-              type="number"
-              value={form.timeoutMs}
-              onChange={(e) => setForm({ ...form, timeoutMs: parseInt(e.target.value) })}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
-              Max Retries
-            </label>
-            <input
-              type="number"
-              value={form.maxRetries}
-              onChange={(e) => setForm({ ...form, maxRetries: parseInt(e.target.value) })}
-            />
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -585,90 +598,92 @@ ${soul.limitations.length > 0 ? soul.limitations.map((l) => `- ${l}`).join('\n')
     <div>
       <h2 style={{ marginBottom: 24 }}>Step 5: Autonomy</h2>
       <div style={{ display: 'grid', gap: 16 }}>
-        <div style={{
-          background: 'var(--bg-secondary)',
-          border: '1px solid var(--border-color)',
-          borderRadius: 4,
-          padding: 16,
-        }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={form.enableHeartbeat}
-              onChange={(e) => setForm({ ...form, enableHeartbeat: e.target.checked })}
-              style={{ width: 20, height: 20 }}
-            />
-            <div>
-              <div style={{ fontWeight: 'bold' }}>Enable Heartbeat</div>
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                Agent runs periodic checks/actions on a schedule
-              </div>
-            </div>
-          </label>
-          {form.enableHeartbeat && (
-            <div style={{ marginTop: 12 }}>
-              <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
-                Cron Expression
+        {mode === 'avancado' && (
+          <TooltipField label="Enable Heartbeat" tooltip="O agente acorda periodicamente para verificar se há trabalho. Útil para agentes autônomos.">
+            <div style={{
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 4,
+              padding: 16,
+            }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={form.enableHeartbeat}
+                  onChange={(e) => setForm({ ...form, enableHeartbeat: e.target.checked })}
+                  style={{ width: 20, height: 20 }}
+                />
+                <div>
+                  <div style={{ fontWeight: 'bold' }}>Enable Heartbeat</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                    Agent runs periodic checks/actions on a schedule
+                  </div>
+                </div>
               </label>
-              <input
-                type="text"
-                value={form.heartbeatCron}
-                onChange={(e) => setForm({ ...form, heartbeatCron: e.target.value })}
-                placeholder="*/15 * * * *"
-              />
-              <div style={{
-                marginTop: 8,
-                padding: 8,
-                background: 'var(--bg-primary)',
-                borderRadius: 4,
-                fontSize: 11,
-              }}>
-                <div style={{ marginBottom: 4, color: 'var(--text-secondary)' }}>Quick presets:</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                  {[
-                    { value: '*/15 * * * *', label: '15 min' },
-                    { value: '*/30 * * * *', label: '30 min' },
-                    { value: '0 * * * *', label: '1 hour' },
-                    { value: '0 9 * * *', label: 'Daily 9am' },
-                  ].map((preset) => (
-                    <button
-                      key={preset.value}
-                      onClick={() => setForm({ ...form, heartbeatCron: preset.value })}
-                      style={{ fontSize: 10, padding: '2px 6px' }}
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
+              {form.enableHeartbeat && (
+                <div style={{ marginTop: 12 }}>
+                  <TooltipField label="Cron Expression" tooltip="Expressão cron define quando o agente acorda. */15 * * * * = a cada 15 minutos.">
+                    <input
+                      type="text"
+                      value={form.heartbeatCron}
+                      onChange={(e) => setForm({ ...form, heartbeatCron: e.target.value })}
+                      placeholder="*/15 * * * *"
+                    />
+                    <div style={{
+                      marginTop: 8,
+                      padding: 8,
+                      background: 'var(--bg-primary)',
+                      borderRadius: 4,
+                      fontSize: 11,
+                    }}>
+                      <div style={{ marginBottom: 4, color: 'var(--text-secondary)' }}>Quick presets:</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {[
+                          { value: '*/15 * * * *', label: '15 min' },
+                          { value: '*/30 * * * *', label: '30 min' },
+                          { value: '0 * * * *', label: '1 hour' },
+                          { value: '0 9 * * *', label: 'Daily 9am' },
+                        ].map((preset) => (
+                          <button
+                            key={preset.value}
+                            onClick={() => setForm({ ...form, heartbeatCron: preset.value })}
+                            style={{ fontSize: 10, padding: '2px 6px' }}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </TooltipField>
                 </div>
-                <div style={{ marginTop: 8, color: 'var(--text-secondary)' }}>
-                  Format: <code style={{ color: 'var(--green)' }}>minute hour day month weekday</code>
-                </div>
-              </div>
+              )}
             </div>
-          )}
-        </div>
+          </TooltipField>
+        )}
 
-        <div style={{
-          background: 'var(--bg-secondary)',
-          border: '1px solid var(--border-color)',
-          borderRadius: 4,
-          padding: 16,
-        }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={form.enableWorkspace}
-              onChange={(e) => setForm({ ...form, enableWorkspace: e.target.checked })}
-              style={{ width: 20, height: 20 }}
-            />
-            <div>
-              <div style={{ fontWeight: 'bold' }}>Enable Workspace</div>
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                Agent has a dedicated folder for persistent memory and work files
+        <TooltipField label="Enable Workspace" tooltip="Cria uma pasta dedicada para o agente guardar memória e arquivos entre sessões.">
+          <div style={{
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: 4,
+            padding: 16,
+          }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={form.enableWorkspace}
+                onChange={(e) => setForm({ ...form, enableWorkspace: e.target.checked })}
+                style={{ width: 20, height: 20 }}
+              />
+              <div>
+                <div style={{ fontWeight: 'bold' }}>Enable Workspace</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                  Agent has a dedicated folder for persistent memory and work files
+                </div>
               </div>
-            </div>
-          </label>
-        </div>
+            </label>
+          </div>
+        </TooltipField>
       </div>
     </div>
   );
