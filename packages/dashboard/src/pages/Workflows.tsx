@@ -34,6 +34,13 @@ interface WorkflowRun {
   startedAt: number;
   completedAt?: number;
   totalTokens: number;
+  stepResults?: Record<string, {
+    agentId: string;
+    status: string;
+    output: string;
+    durationMs: number;
+    tokens: number;
+  }>;
 }
 
 const PATTERN_COLORS: Record<string, string> = {
@@ -49,6 +56,7 @@ export function Workflows() {
   const [showBuilder, setShowBuilder] = useState(false);
   const [showRunModal, setShowRunModal] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState<Workflow | null>(null);
+  const [selectedRun, setSelectedRun] = useState<WorkflowRun | null>(null);
   const [runInput, setRunInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [runningWorkflow, setRunningWorkflow] = useState<string | null>(null);
@@ -321,18 +329,26 @@ export function Workflows() {
                     )}
                   </div>
                   {(recentRuns.get(wf.id)!.finalOutput || recentRuns.get(wf.id)!.error) && (
-                    <div style={{
-                      marginTop: 8,
-                      padding: 8,
-                      background: 'var(--bg-secondary)',
-                      borderRadius: 4,
-                      fontSize: 12,
-                      whiteSpace: 'pre-wrap',
-                      maxHeight: 150,
-                      overflow: 'auto',
-                      color: recentRuns.get(wf.id)!.error ? 'var(--red)' : 'var(--text-primary)',
-                    }}>
-                      {recentRuns.get(wf.id)!.error || recentRuns.get(wf.id)!.finalOutput}
+                    <div
+                      onClick={() => setSelectedRun(recentRuns.get(wf.id)!)}
+                      style={{
+                        marginTop: 8,
+                        padding: 8,
+                        background: 'var(--bg-secondary)',
+                        borderRadius: 4,
+                        fontSize: 12,
+                        whiteSpace: 'pre-wrap',
+                        maxHeight: 150,
+                        overflow: 'auto',
+                        color: recentRuns.get(wf.id)!.error ? 'var(--red)' : 'var(--text-primary)',
+                        cursor: 'pointer',
+                        border: '1px solid transparent',
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--green)'}
+                      onMouseLeave={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                    >
+                      {recentRuns.get(wf.id)!.error || recentRuns.get(wf.id)!.finalOutput?.substring(0, 200)}
+                      {recentRuns.get(wf.id)!.finalOutput && recentRuns.get(wf.id)!.finalOutput!.length > 200 && '... [clique para ver completo]'}
                     </div>
                   )}
                 </div>
@@ -438,6 +454,13 @@ export function Workflows() {
             setShowEditModal(null);
             fetchWorkflows();
           }}
+        />
+      )}
+
+      {selectedRun && (
+        <RunDetailsModal
+          run={selectedRun}
+          onClose={() => setSelectedRun(null)}
         />
       )}
     </div>
@@ -1040,6 +1063,66 @@ function EditWorkflowModal({ workflow, onClose, onSave }: EditWorkflowModalProps
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
           <button onClick={onClose} style={{ padding: '10px 20px', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: 4, cursor: 'pointer' }}>Cancel</button>
           <button onClick={handleSave} disabled={!name.trim() || steps.length === 0 || saving} style={{ padding: '10px 20px', background: 'var(--green)', color: '#000', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}>{saving ? 'Saving...' : 'Save'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface RunDetailsModalProps {
+  run: WorkflowRun;
+  onClose: () => void;
+}
+
+function RunDetailsModal({ run, onClose }: RunDetailsModalProps) {
+  const steps = run.stepResults ? Object.entries(run.stepResults) : [];
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div style={{ background: 'var(--bg-secondary)', padding: 24, borderRadius: 8, width: 800, maxWidth: '90%', maxHeight: '90vh', overflow: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 style={{ color: 'var(--green)' }}>Workflow Result</h2>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 20 }}>&times;</button>
+        </div>
+
+        <div style={{ marginBottom: 16, padding: 12, background: 'var(--bg-primary)', borderRadius: 4 }}>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Input:</div>
+          <div style={{ fontSize: 14, marginTop: 4 }}>{run.input}</div>
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <span style={{ fontWeight: 'bold', color: run.status === 'success' ? 'var(--green)' : 'var(--red)' }}>
+            {run.status.toUpperCase()}
+          </span>
+          <span style={{ color: 'var(--text-secondary)', marginLeft: 8 }}>
+            {run.totalTokens} tokens
+          </span>
+        </div>
+
+        {steps.map(([stepId, step], index) => (
+          <div key={stepId} style={{ marginBottom: 16, padding: 12, background: 'var(--bg-primary)', borderRadius: 4, border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontWeight: 'bold' }}>Step {index + 1} ({stepId})</span>
+              <span style={{ fontSize: 12, color: step.status === 'success' ? 'var(--green)' : 'var(--red)' }}>
+                {step.status} • {step.tokens} tokens • {step.durationMs}ms
+              </span>
+            </div>
+            <div style={{ 
+              whiteSpace: 'pre-wrap', 
+              fontSize: 13, 
+              padding: 8, 
+              background: 'var(--bg-secondary)', 
+              borderRadius: 4,
+              maxHeight: 300,
+              overflow: 'auto'
+            }}>
+              {step.output || '(no output)'}
+            </div>
+          </div>
+        ))}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+          <button onClick={onClose}>Close</button>
         </div>
       </div>
     </div>
