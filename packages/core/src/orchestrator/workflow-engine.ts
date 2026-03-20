@@ -119,8 +119,15 @@ export class WorkflowEngine {
 
   private async runPipeline(definition: WorkflowDefinition, run: WorkflowRun): Promise<void> {
     let currentInput = run.input;
+    let currentStepIndex = 0;
+    const maxIterations = definition.steps.length * 3; // Prevent infinite loops
+    let iterations = 0;
 
-    for (const step of definition.steps) {
+    while (currentStepIndex < definition.steps.length && iterations < maxIterations) {
+      iterations++;
+      const step = definition.steps[currentStepIndex];
+      if (!step) break;
+
       const stepInput = this.interpolateInput(step.input, run.stepResults, currentInput, run.input);
 
       if (step.condition && !this.checkCondition(step.condition, currentInput)) {
@@ -134,18 +141,71 @@ export class WorkflowEngine {
           startedAt: Date.now(),
           completedAt: Date.now(),
         };
+        currentStepIndex++;
         continue;
       }
 
-      const result = await this.executeStep(step, run, stepInput);
+      // Execute step with retry
+      let retries = 0;
+      const maxRetries = step.maxRetries ?? 0;
+      let result: WorkflowStepResult;
+
+      do {
+        result = await this.executeStep(step, run, stepInput);
+
+        // Check if output is valid
+        if (step.validateOutput && result.status === 'success') {
+          const isValid = this.checkCondition(step.validateOutput, result.output);
+          if (!isValid) {
+            this.logger.info({ stepId: step.id, output: result.output.substring(0, 100) }, 'Output validation failed');
+            if (retries < maxRetries) {
+              retries++;
+              continue;
+            }
+            // Validation failed, go to onFailure step if defined
+            if (step.onFailure) {
+              const failStepIndex = definition.steps.findIndex(s => s.id === step.onFailure);
+              if (failStepIndex >= 0) {
+                currentStepIndex = failStepIndex;
+                currentInput = result.output;
+                break;
+              }
+            }
+            result.status = 'failed';
+            result.output = `Validation failed: ${step.validateOutput}`;
+          }
+        }
+        break;
+      } while (retries <= maxRetries);
+
+      run.stepResults[step.id ?? 'unknown'] = result;
 
       if (result.status === 'failed' || result.status === 'cancelled') {
+        // Go to onFailure step if defined
+        if (step.onFailure) {
+          const failStepIndex = definition.steps.findIndex(s => s.id === step.onFailure);
+          if (failStepIndex >= 0) {
+            currentStepIndex = failStepIndex;
+            currentInput = result.output;
+            continue;
+          }
+        }
         run.status = 'failed';
         run.error = `Step ${step.id} failed: ${result.output}`;
         return;
       }
 
       currentInput = result.output;
+
+      // Go to onSuccess step if defined, otherwise next step
+      if (step.onSuccess) {
+        const successStepIndex = definition.steps.findIndex(s => s.id === step.onSuccess);
+        if (successStepIndex >= 0) {
+          currentStepIndex = successStepIndex;
+          continue;
+        }
+      }
+      currentStepIndex++;
     }
 
     run.finalOutput = currentInput;

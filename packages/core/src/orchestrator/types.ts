@@ -18,6 +18,10 @@ export interface WorkflowStep {
   dependsOn?: string[];
   condition?: string;
   timeoutMs?: number;
+  maxRetries?: number;
+  onSuccess?: string; // Step ID to go to on success
+  onFailure?: string; // Step ID to go to on failure
+  validateOutput?: string; // Keyword or pattern to validate output (e.g. "contains:VALIDO")
 }
 
 export interface WorkflowDefinition {
