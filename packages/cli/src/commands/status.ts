@@ -47,6 +47,13 @@ export function createStatusCommand(client: ApiClient, jsonFlag: boolean): Comma
       console.log(`  ${chalk.cyan('Agents')}:          ${status.agentsRegistered}`);
       console.log(`  ${chalk.cyan('Total Tasks')}:    ${status.totalTasks}`);
       console.log();
+      
+      if (status.agentsRegistered === 0) {
+        console.log(chalk.yellow('No agents registered yet.'));
+        console.log(chalk.dim('Run ') + chalk.cyan('tmb setup') + chalk.dim(' to configure TrustMeBro and create your first agent.'));
+        console.log(chalk.dim('Or visit ') + chalk.cyan('http://localhost:5173') + chalk.dim(' to use the dashboard.'));
+        console.log();
+      }
     } catch (err) {
       spinner.stop();
       error((err as Error).message);

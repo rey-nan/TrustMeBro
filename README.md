@@ -6,14 +6,38 @@ Autonomous agent orchestration harness. Run AI agents programmatically, locally 
 
 ## Quick Start
 
+### Option 1: Guided Setup (recommended)
 ```bash
-git clone <repo>
-cd trustmebro
+git clone https://github.com/rey-nan/TrustMeBro.git
+cd TrustMeBro
+node setup.js
+```
+
+The setup wizard will guide you through:
+1. Choosing your LLM provider
+2. Configuring your API key
+3. Selecting a default model
+4. Creating your first agent
+
+### Option 2: Manual Setup
+```bash
+git clone https://github.com/rey-nan/TrustMeBro.git
+cd TrustMeBro
+npm install
 cp .env.example .env
 # Edit .env with your LLM provider settings
-npm install
 npm run build:core
 npm run dev
+```
+
+### CLI Commands
+After setup, use `tmb` (short for `trustmebro`) to interact:
+```bash
+tmb setup          # Re-run setup wizard
+tmb status         # Check system status
+tmb agent list     # List agents
+tmb task run       # Run a task
+tmb workflow list  # List workflows
 ```
 
 ## Providers

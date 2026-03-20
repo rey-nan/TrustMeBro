@@ -11,7 +11,10 @@ import { createSkillCommand } from './commands/skill.js';
 import { createDeptCommand } from './commands/dept.js';
 import { createStatusCommand } from './commands/status.js';
 import { createWorkflowCommand } from './commands/workflow.js';
+import { createSetupCommand } from './commands/setup.js';
 import chalk from 'chalk';
+import fs from 'fs';
+import path from 'path';
 
 const VERSION = '0.1.0';
 
@@ -40,6 +43,28 @@ async function main(): Promise<void> {
   const config = loadConfig();
   const client = new ApiClient(config);
   const jsonFlag = false;
+
+  // Check if setup is needed
+  const needsSetup = (): boolean => {
+    const envPath = path.resolve(process.cwd(), '.env');
+    if (!fs.existsSync(envPath)) return true;
+    const content = fs.readFileSync(envPath, 'utf-8');
+    return !content.includes('LLM_API_KEY=') || content.includes('LLM_API_KEY=\n') || content.includes('LLM_API_KEY=your_api_key_here');
+  };
+
+  // Register setup command first
+  program.addCommand(createSetupCommand());
+
+  // Add first-time check for other commands
+  program.hook('preAction', (thisCommand) => {
+    if (thisCommand.name() !== 'setup' && needsSetup()) {
+      console.log();
+      console.log(chalk.yellow("Looks like TrustMeBro isn't configured yet."));
+      console.log(chalk.dim("Run '") + chalk.cyan('tmb setup') + chalk.dim("' to get started."));
+      console.log();
+      process.exit(0);
+    }
+  });
 
   program.addCommand(createAgentCommand(client, jsonFlag));
   program.addCommand(createTaskCommand(client, jsonFlag));
