@@ -48,6 +48,7 @@ export function Workflows() {
   const [recentRuns, setRecentRuns] = useState<Map<string, WorkflowRun>>(new Map());
   const [showBuilder, setShowBuilder] = useState(false);
   const [showRunModal, setShowRunModal] = useState<string | null>(null);
+  const [showEditModal, setShowEditModal] = useState<Workflow | null>(null);
   const [runInput, setRunInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [runningWorkflow, setRunningWorkflow] = useState<string | null>(null);
@@ -278,6 +279,19 @@ export function Workflows() {
                       >
                         Delete
                       </button>
+                      <button
+                        onClick={() => setShowEditModal(wf)}
+                        style={{
+                          padding: '8px 16px',
+                          background: 'transparent',
+                          color: 'var(--text-secondary)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: 4,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Edit
+                      </button>
                     </>
                   )}
                 </div>
@@ -411,6 +425,17 @@ export function Workflows() {
           onClose={() => setShowBuilder(false)}
           onSave={() => {
             setShowBuilder(false);
+            fetchWorkflows();
+          }}
+        />
+      )}
+
+      {showEditModal && (
+        <EditWorkflowModal
+          workflow={showEditModal}
+          onClose={() => setShowEditModal(null)}
+          onSave={() => {
+            setShowEditModal(null);
             fetchWorkflows();
           }}
         />
@@ -855,6 +880,130 @@ function WorkflowBuilder({ onClose, onSave }: WorkflowBuilderProps) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+interface EditWorkflowModalProps {
+  workflow: Workflow;
+  onClose: () => void;
+  onSave: () => void;
+}
+
+function EditWorkflowModal({ workflow, onClose, onSave }: EditWorkflowModalProps) {
+  const [name, setName] = useState(workflow.name);
+  const [description, setDescription] = useState(workflow.description);
+  const [pattern, setPattern] = useState(workflow.pattern);
+  const [combinePrompt, setCombinePrompt] = useState(workflow.combinePrompt || '');
+  const [reviewAgentId, setReviewAgentId] = useState(workflow.reviewAgentId || '');
+  const [steps, setSteps] = useState<WorkflowStep[]>(workflow.steps);
+  const [agents, setAgents] = useState<{ id: string; name: string }[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetchAgents();
+  }, []);
+
+  const fetchAgents = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/agents`);
+      const data = await res.json();
+      if (data.success) setAgents(data.data);
+    } catch (err) {
+      console.error('Failed to fetch agents:', err);
+    }
+  };
+
+  const addStep = () => {
+    setSteps([...steps, { id: `step-${steps.length + 1}`, agentId: agents[0]?.id || '', input: '' }]);
+  };
+
+  const removeStep = (index: number) => {
+    setSteps(steps.filter((_, i) => i !== index));
+  };
+
+  const updateStep = (index: number, updates: Partial<WorkflowStep>) => {
+    setSteps(steps.map((step, i) => (i === index ? { ...step, ...updates } : step)));
+  };
+
+  const handleSave = async () => {
+    if (!name.trim() || steps.length === 0) return;
+    setSaving(true);
+    try {
+      await fetch(`${API_URL}/api/workflows/${workflow.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description, pattern, combinePrompt, reviewAgentId, steps }),
+      });
+      onSave();
+    } catch (err) {
+      console.error('Failed to update workflow:', err);
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div style={{ background: 'var(--bg-secondary)', padding: 24, borderRadius: 8, width: 700, maxWidth: '90%', maxHeight: '90vh', overflow: 'auto' }}>
+        <h2 style={{ marginBottom: 24, color: 'var(--green)' }}>Edit Workflow</h2>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>Name</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} style={{ width: '100%' }} />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>Description</label>
+          <input value={description} onChange={(e) => setDescription(e.target.value)} style={{ width: '100%' }} />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>Pattern</label>
+          <select value={pattern} onChange={(e) => setPattern(e.target.value as Workflow['pattern'])} style={{ width: '100%' }}>
+            <option value="pipeline">Pipeline</option>
+            <option value="fan-out">Fan-out</option>
+            <option value="swarm">Swarm</option>
+            <option value="review">Review</option>
+          </select>
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>Steps</label>
+          {steps.map((step, index) => (
+            <div key={index} style={{ display: 'flex', gap: 8, marginBottom: 8, padding: 8, background: 'var(--bg-primary)', borderRadius: 4 }}>
+              <input value={step.id} onChange={(e) => updateStep(index, { id: e.target.value })} placeholder="ID" style={{ width: 80 }} />
+              <select value={step.agentId} onChange={(e) => updateStep(index, { agentId: e.target.value })} style={{ flex: 1 }}>
+                {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+              <input value={step.input} onChange={(e) => updateStep(index, { input: e.target.value })} placeholder="input (use {{previous}} or {{input}})" style={{ flex: 2 }} />
+              <button onClick={() => removeStep(index)} style={{ padding: '4px 8px', background: 'var(--red)', color: '#000', border: 'none', borderRadius: 4, cursor: 'pointer' }}>X</button>
+            </div>
+          ))}
+          <button onClick={addStep} style={{ padding: '4px 12px', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: 4, cursor: 'pointer' }}>+ Add Step</button>
+        </div>
+
+        {pattern === 'review' && (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>Review Agent</label>
+            <select value={reviewAgentId} onChange={(e) => setReviewAgentId(e.target.value)} style={{ width: '100%' }}>
+              <option value="">Select agent</option>
+              {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+          </div>
+        )}
+
+        {pattern === 'fan-out' && (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>Combine Prompt</label>
+            <textarea value={combinePrompt} onChange={(e) => setCombinePrompt(e.target.value)} placeholder="Combine the following results..." style={{ width: '100%', height: 80 }} />
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '10px 20px', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: 4, cursor: 'pointer' }}>Cancel</button>
+          <button onClick={handleSave} disabled={!name.trim() || steps.length === 0 || saving} style={{ padding: '10px 20px', background: 'var(--green)', color: '#000', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}>{saving ? 'Saving...' : 'Save'}</button>
+        </div>
+      </div>
     </div>
   );
 }
