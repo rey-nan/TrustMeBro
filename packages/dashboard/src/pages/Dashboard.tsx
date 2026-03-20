@@ -334,6 +334,7 @@ export function Dashboard() {
               onRunTask={() => handleRunTask(agent.id)}
               onEdit={() => {}}
               onDelete={() => {}}
+              onStop={() => {}}
             />
           ))}
         </div>

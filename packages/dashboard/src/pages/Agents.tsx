@@ -52,6 +52,12 @@ export function Agents() {
     loadAgents();
   };
 
+  const handleStop = async (id: string) => {
+    if (!confirm('Stop all running tasks for this agent?')) return;
+    await api.post(`/api/agents/${id}/stop`, {});
+    loadAgents();
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
@@ -84,6 +90,7 @@ export function Agents() {
             onRunTask={() => { setRunTaskAgentId(agent.id); setShowTaskForm(true); }}
             onEdit={() => { setEditingAgent(agent); setShowForm(true); }}
             onDelete={() => handleDelete(agent.id)}
+            onStop={() => handleStop(agent.id)}
           />
         ))}
       </div>

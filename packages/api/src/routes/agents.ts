@@ -283,4 +283,44 @@ export async function agentsRoutes(fastify: FastifyInstance): Promise<void> {
       });
     }
   });
+
+  fastify.post<{
+    Params: { id: string };
+    Reply: ApiResponse;
+  }>('/api/agents/:id/stop', async (request, reply) => {
+    try {
+      const agentId = request.params.id;
+      const agent = getAgentRegistry().get(agentId);
+
+      if (!agent) {
+        return reply.code(404).send({
+          success: false,
+          error: 'Agent not found',
+          timestamp: Date.now(),
+        });
+      }
+
+      // Mark all running tasks as failed
+      const result = db.prepare(`
+        UPDATE tasks SET status = 'failed', error = 'Stopped by user', completed_at = ?
+        WHERE agent_id = ? AND status = 'running'
+      `).run(Date.now(), agentId);
+
+      // Clear heartbeat
+      db.prepare(`UPDATE agents SET heartbeat_cron = NULL WHERE id = ?`).run(agentId);
+
+      return reply.send({
+        success: true,
+        data: { stopped: result.changes },
+        timestamp: Date.now(),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return reply.code(500).send({
+        success: false,
+        error: message,
+        timestamp: Date.now(),
+      });
+    }
+  });
 }

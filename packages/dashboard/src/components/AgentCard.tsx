@@ -14,9 +14,10 @@ interface AgentCardProps {
   onRunTask: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onStop: () => void;
 }
 
-export function AgentCard({ agent, stats, onRunTask, onEdit, onDelete }: AgentCardProps) {
+export function AgentCard({ agent, stats, onRunTask, onEdit, onDelete, onStop }: AgentCardProps) {
   return (
     <div style={{
       background: 'var(--bg-secondary)',
@@ -49,6 +50,7 @@ export function AgentCard({ agent, stats, onRunTask, onEdit, onDelete }: AgentCa
 
       <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={onRunTask}>Run Task</button>
+        <button onClick={onStop} className="danger">Stop</button>
         <button onClick={onEdit}>Edit</button>
         <button onClick={onDelete} className="danger">Delete</button>
       </div>
