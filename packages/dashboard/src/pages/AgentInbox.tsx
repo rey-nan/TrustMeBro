@@ -158,7 +158,10 @@ export function AgentInbox() {
     });
 
     if (res.success) {
+      const toAgent = agents.find(a => a.id === newMessageTo);
+      alert(`Message sent to ${toAgent?.name || newMessageTo}! Check their inbox to see it.`);
       setNewMessage('');
+      setNewMessageTo('');
       loadInbox();
     }
   };
@@ -389,6 +392,11 @@ export function AgentInbox() {
             marginTop: activeTab === 'threads' && selectedThread ? 16 : 0,
           }}>
             <h3 style={{ marginBottom: 12, color: 'var(--green)' }}>Send Message</h3>
+            <div style={{ marginBottom: 8, fontSize: 11, color: 'var(--text-secondary)' }}>
+              From: <strong>{agents.find(a => a.id === selectedAgentId)?.name || selectedAgentId}</strong>
+              {' → '}
+              Message will appear in recipient's inbox
+            </div>
             <div style={{ marginBottom: 12 }}>
               <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
                 To Agent
