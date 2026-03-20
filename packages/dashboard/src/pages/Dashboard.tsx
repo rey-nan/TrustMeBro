@@ -87,6 +87,21 @@ export function Dashboard() {
     if (lastMessage?.type?.startsWith('heartbeat')) {
       loadHeartbeats();
     }
+    // Update tasks in real-time
+    if (lastMessage?.type === 'task:completed' || lastMessage?.type === 'task:failed') {
+      const { taskId, output, error } = lastMessage.payload as { taskId: string; output?: string; error?: string };
+      setRecentTasks(prev => prev.map(t => 
+        t.id === taskId 
+          ? { 
+              ...t, 
+              status: lastMessage.type === 'task:completed' ? 'success' : 'failed',
+              output: output || t.output,
+              error: error || t.error,
+              duration_ms: Date.now() - t.created_at
+            }
+          : t
+      ));
+    }
   }, [lastMessage]);
 
   const loadData = async () => {

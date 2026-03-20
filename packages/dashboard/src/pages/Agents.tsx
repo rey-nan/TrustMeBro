@@ -137,7 +137,12 @@ function AgentForm({ agent, onClose, onSuccess }: AgentFormProps) {
     setLoading(true);
     setError(null);
 
-    const res = await api.post('/api/agents', form);
+    const data = {
+      ...form,
+      id: form.id || (form.name || 'agent').toLowerCase().replace(/\s+/g, '-') + '-' + Date.now().toString(36),
+    };
+
+    const res = await api.post('/api/agents', data);
     if (res.success) {
       onSuccess();
     } else {
@@ -173,13 +178,12 @@ function AgentForm({ agent, onClose, onSuccess }: AgentFormProps) {
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div>
-              <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>ID *</label>
+              <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>ID (auto-generated if empty)</label>
               <input
                 type="text"
                 value={form.id}
                 onChange={(e) => setForm({ ...form, id: e.target.value })}
-                placeholder="unique-agent-id"
-                required
+                placeholder="auto-generated"
                 disabled={!!agent}
               />
             </div>

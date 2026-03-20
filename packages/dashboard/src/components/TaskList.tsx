@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 
 interface Task {
   id: string;
@@ -71,9 +71,8 @@ export function TaskList({ tasks, onAbort, showPagination, pagination }: TaskLis
           </thead>
           <tbody>
             {tasks.map((task) => (
-              <>
+              <Fragment key={task.id}>
                 <tr
-                  key={task.id}
                   style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer' }}
                   onClick={() => setExpanded(expanded === task.id ? null : task.id)}
                 >
@@ -145,7 +144,7 @@ export function TaskList({ tasks, onAbort, showPagination, pagination }: TaskLis
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             ))}
           </tbody>
         </table>
