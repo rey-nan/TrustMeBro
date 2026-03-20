@@ -121,7 +121,7 @@ export class WorkflowEngine {
     let currentInput = run.input;
 
     for (const step of definition.steps) {
-      const stepInput = this.interpolateInput(step.input, run.stepResults, currentInput);
+      const stepInput = this.interpolateInput(step.input, run.stepResults, currentInput, run.input);
 
       if (step.condition && !this.checkCondition(step.condition, currentInput)) {
         this.logger.info({ stepId: step.id }, 'Step skipped due to condition');
@@ -153,7 +153,7 @@ export class WorkflowEngine {
 
   private async runFanOut(definition: WorkflowDefinition, run: WorkflowRun): Promise<void> {
     const promises = definition.steps.map((step) =>
-      this.executeStep(step, run, this.interpolateInput(step.input, {}, run.input))
+      this.executeStep(step, run, this.interpolateInput(step.input, {}, run.input, run.input))
     );
 
     const results = await Promise.allSettled(promises);
@@ -486,9 +486,14 @@ Respond with JSON:
   private interpolateInput(
     template: string,
     stepResults: Record<string, WorkflowStepResult>,
-    previousOutput: string
+    previousOutput: string,
+    userInput?: string
   ): string {
     let result = template.replace(/\{\{previous\}\}/g, previousOutput);
+    
+    if (userInput) {
+      result = result.replace(/\{\{input\}\}/g, userInput);
+    }
 
     for (const [stepId, stepResult] of Object.entries(stepResults)) {
       result = result.replace(new RegExp(`\\{\\{${stepId}\\}\\}`, 'g'), stepResult.output);
