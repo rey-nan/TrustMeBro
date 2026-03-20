@@ -26,6 +26,9 @@ import {
   webSearchSkill,
   httpRequestSkill,
   WorkflowEngine,
+  GitSkill,
+  ScriptSkill,
+  CustomSkillRegistry,
 } from '@trustmebro/core';
 import { db } from './db.js';
 import { authHook } from './auth.js';
@@ -37,7 +40,7 @@ import { departmentsRoutes } from './routes/departments.js';
 import { heartbeatRoutes, setHeartbeatSystem } from './routes/heartbeat.js';
 import { communicationRoutes, setCommunication } from './routes/communication.js';
 import { knowledgeRoutes, setKnowledgeBase } from './routes/knowledge.js';
-import { skillsRoutes, setSkillRegistry, setToolExecutor } from './routes/skills.js';
+import { skillsRoutes, setSkillRegistry, setToolExecutor, setCustomSkillRegistry } from './routes/skills.js';
 import { sandboxRoutes } from './routes/sandbox.js';
 import { workflowsRoutes, setWorkflowEngine } from './routes/workflows.js';
 import { handleConnection, broadcast } from './websocket/handler.js';
@@ -68,9 +71,12 @@ async function main() {
 
   const skillRegistry = new SkillRegistry('./data/agent-skills.json', logger);
   const toolExecutor = new ToolExecutor(skillRegistry, logger);
+  const customSkillRegistry = new CustomSkillRegistry('./data');
 
   skillRegistry.register(webSearchSkill);
   skillRegistry.register(httpRequestSkill);
+  skillRegistry.register(new GitSkill('./data/workspaces'));
+  skillRegistry.register(new ScriptSkill('./data/workspaces'));
   skillRegistry.register({
     id: 'file_system_default',
     name: 'File System (Default)',
@@ -138,6 +144,15 @@ async function main() {
   setKnowledgeBase(knowledgeBase);
   setSkillRegistry(skillRegistry);
   setToolExecutor(toolExecutor);
+  setCustomSkillRegistry(customSkillRegistry);
+
+  // Register existing custom skills
+  for (const customDef of customSkillRegistry.list()) {
+    const customSkill = customSkillRegistry.toSkill(customDef.id);
+    if (customSkill) {
+      skillRegistry.register(customSkill);
+    }
+  }
 
   fastify.addHook('preHandler', authHook);
 
