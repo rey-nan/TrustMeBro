@@ -4,7 +4,18 @@ import { db } from '../db.js';
 import type { ApiResponse } from '../types.js';
 import { AgentRegistry } from '@trustmebro/core';
 
-const agentRegistry = new AgentRegistry('./data/agents.json');
+let agentRegistry: AgentRegistry | null = null;
+
+export function setAgentRegistry(registry: AgentRegistry): void {
+  agentRegistry = registry;
+}
+
+export function getAgentRegistry(): AgentRegistry {
+  if (!agentRegistry) {
+    agentRegistry = new AgentRegistry('./data/agents.json');
+  }
+  return agentRegistry;
+}
 
 const createAgentSchema = z.object({
   id: z.string().min(1),
@@ -23,7 +34,7 @@ const updateAgentSchema = createAgentSchema.partial().omit({ id: true });
 export async function agentsRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get<{ Reply: ApiResponse }>('/api/agents', async (_request, reply) => {
     try {
-      const agents = agentRegistry.list();
+      const agents = getAgentRegistry().list();
       return reply.send({
         success: true,
         data: agents,
@@ -64,7 +75,7 @@ export async function agentsRoutes(fastify: FastifyInstance): Promise<void> {
         Date.now()
       );
 
-      agentRegistry.register({
+      getAgentRegistry().register({
         id: parsed.id,
         name: parsed.name,
         description: parsed.description,
@@ -103,7 +114,7 @@ export async function agentsRoutes(fastify: FastifyInstance): Promise<void> {
     Reply: ApiResponse;
   }>('/api/agents/:id', async (request, reply) => {
     try {
-      const agent = agentRegistry.get(request.params.id);
+      const agent = getAgentRegistry().get(request.params.id);
 
       if (!agent) {
         return reply.code(404).send({
@@ -134,7 +145,7 @@ export async function agentsRoutes(fastify: FastifyInstance): Promise<void> {
     Reply: ApiResponse;
   }>('/api/agents/:id', async (request, reply) => {
     try {
-      const existing = agentRegistry.get(request.params.id);
+      const existing = getAgentRegistry().get(request.params.id);
       if (!existing) {
         return reply.code(404).send({
           success: false,
@@ -146,7 +157,7 @@ export async function agentsRoutes(fastify: FastifyInstance): Promise<void> {
       const parsed = updateAgentSchema.parse(request.body);
       const updated = { ...existing, ...parsed };
 
-      agentRegistry.register(updated);
+      getAgentRegistry().register(updated);
 
       const updateStmt = db.prepare(`
         UPDATE agents SET name = ?, description = ?, system_prompt = ?, model = ?, temperature = ?, max_tokens = ?, timeout_ms = ?, max_retries = ?
@@ -192,7 +203,7 @@ export async function agentsRoutes(fastify: FastifyInstance): Promise<void> {
     Reply: ApiResponse;
   }>('/api/agents/:id', async (request, reply) => {
     try {
-      const deleted = agentRegistry.remove(request.params.id);
+      const deleted = getAgentRegistry().remove(request.params.id);
 
       if (!deleted) {
         return reply.code(404).send({
@@ -224,7 +235,7 @@ export async function agentsRoutes(fastify: FastifyInstance): Promise<void> {
     Reply: ApiResponse;
   }>('/api/agents/:id/stats', async (request, reply) => {
     try {
-      const agent = agentRegistry.get(request.params.id);
+      const agent = getAgentRegistry().get(request.params.id);
       if (!agent) {
         return reply.code(404).send({
           success: false,

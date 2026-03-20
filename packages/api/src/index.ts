@@ -29,7 +29,7 @@ import {
 } from '@trustmebro/core';
 import { db } from './db.js';
 import { authHook } from './auth.js';
-import { agentsRoutes } from './routes/agents.js';
+import { agentsRoutes, setAgentRegistry } from './routes/agents.js';
 import { tasksRoutes, setHarnessInstance, setRunnerInstance } from './routes/tasks.js';
 import { consumptionRoutes } from './routes/consumption.js';
 import { statusRoutes, setLlmClient } from './routes/status.js';
@@ -62,6 +62,7 @@ async function main() {
 
   const llmClient = new LLMClient(logger);
   const agentRegistry = new AgentRegistry('./data/agents.json');
+  setAgentRegistry(agentRegistry);
   const contextManager = new ContextManager(50, logger);
   const agentRunner = new AgentRunner(llmClient, contextManager, logger);
 

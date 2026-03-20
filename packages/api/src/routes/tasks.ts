@@ -4,7 +4,7 @@ import { randomUUID } from 'crypto';
 import { db } from '../db.js';
 import type { ApiResponse } from '../types.js';
 import { broadcast } from '../websocket/handler.js';
-import { AgentRegistry } from '@trustmebro/core';
+import { getAgentRegistry } from './agents.js';
 
 export let harnessInstance: import('@trustmebro/core').Harness | null = null;
 export let runnerInstance: import('@trustmebro/core').AgentRunner | null = null;
@@ -115,39 +115,43 @@ export async function tasksRoutes(fastify: FastifyInstance): Promise<void> {
         createdAt: now,
       };
 
-      const registry = new AgentRegistry('./data/agents.json');
-      const agentConfig = registry.get(parsed.agentId);
+      const agentConfig = getAgentRegistry().get(parsed.agentId);
 
       if (!agentConfig) {
         updateTask(taskId, 'failed', '', 'Agent not found', 0, 0, 0, 0);
         return;
       }
 
-      const result = await harnessInstance.execute(agentConfig, task);
+      try {
+        const result = await harnessInstance.execute(agentConfig, task);
 
-      updateTask(
-        taskId,
-        result.status,
-        result.output,
-        result.error,
-        result.attempts,
-        result.usage.inputTokens,
-        result.usage.outputTokens,
-        result.durationMs
-      );
+        updateTask(
+          taskId,
+          result.status,
+          result.output,
+          result.error,
+          result.attempts,
+          result.usage.inputTokens,
+          result.usage.outputTokens,
+          result.durationMs
+        );
 
-      if (result.status === 'success') {
-        broadcast({
-          type: 'task:completed',
-          payload: { taskId, output: result.output, usage: result.usage },
-          timestamp: Date.now(),
-        });
-      } else {
-        broadcast({
-          type: 'task:failed',
-          payload: { taskId, error: result.error },
-          timestamp: Date.now(),
-        });
+        if (result.status === 'success') {
+          broadcast({
+            type: 'task:completed',
+            payload: { taskId, output: result.output, usage: result.usage },
+            timestamp: Date.now(),
+          });
+        } else {
+          broadcast({
+            type: 'task:failed',
+            payload: { taskId, error: result.error },
+            timestamp: Date.now(),
+          });
+        }
+      } catch (harnessError) {
+        const harnessMsg = harnessError instanceof Error ? harnessError.message : 'Harness execution failed';
+        updateTask(taskId, 'failed', '', harnessMsg, 0, 0, 0, Date.now() - now);
       }
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -246,7 +250,7 @@ function updateTask(
   db.prepare(`
     UPDATE tasks SET status = ?, output = ?, error = ?, attempts = ?, input_tokens = ?, output_tokens = ?, duration_ms = ?, completed_at = ?
     WHERE id = ?
-  `).run(status, output, error ?? null, attempts, inputTokens, outputTokens, durationMs, completedAt);
+  `).run(status, output, error ?? null, attempts, inputTokens, outputTokens, durationMs, completedAt, taskId);
 
   if (inputTokens > 0 || outputTokens > 0) {
     const task = db.prepare('SELECT agent_id FROM tasks WHERE id = ?').get(taskId) as { agent_id: string } | undefined;

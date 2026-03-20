@@ -37,6 +37,11 @@ export class PreCompletionMiddleware implements Middleware {
       return { continue: true };
     }
 
+    if (taskType === 'general') {
+      this.logger.debug({ taskId: ctx.taskId }, 'General task - skipping LLM verification');
+      return { continue: true };
+    }
+
     const verification = await this.verifyWithLLM(ctx, taskType);
 
     this.logger.info({
@@ -70,7 +75,7 @@ export class PreCompletionMiddleware implements Middleware {
   }
 
   private checkBasicEvidence(output: string, taskType: 'code' | 'research' | 'general'): boolean {
-    if (!output || output.trim().length < 10) {
+    if (!output || output.trim().length < 3) {
       return false;
     }
 
@@ -80,7 +85,7 @@ export class PreCompletionMiddleware implements Middleware {
       case 'research':
         return /\d+|%|\bdata\b|\bfindings\b|\bconclusion\b/i.test(output);
       case 'general':
-        return output.split(/\s+/).length > 10;
+        return output.trim().length >= 10;
     }
   }
 
