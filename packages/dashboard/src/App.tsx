@@ -1,4 +1,4 @@
-import { useState, Component, ReactNode } from 'react';
+import { useState, Component, ReactNode, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { Agents } from './pages/Agents';
@@ -12,6 +12,7 @@ import { AgentInbox } from './pages/AgentInbox';
 import { KnowledgeBase } from './pages/KnowledgeBase';
 import { Skills } from './pages/Skills';
 import { Workflows } from './pages/Workflows';
+import { wsClient } from './api/client';
 
 type Page = 'dashboard' | 'agents' | 'agent-builder' | 'org-chart' | 'tasks' | 'workflows' | 'skills' | 'consumption' | 'settings' | 'activity-feed' | 'agent-inbox' | 'knowledge-base';
 
@@ -75,6 +76,11 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
+
+  useEffect(() => {
+    wsClient.connect();
+    return () => wsClient.disconnect();
+  }, []);
 
   const renderPage = () => {
     switch (currentPage) {

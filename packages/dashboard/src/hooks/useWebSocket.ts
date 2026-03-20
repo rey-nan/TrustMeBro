@@ -6,15 +6,15 @@ export function useWebSocket() {
   const messagesRef = useRef<WsMessage[]>([]);
 
   useEffect(() => {
-    wsClient.onMessage((msg) => {
+    const callback = (msg: WsMessage) => {
       setLastMessage(msg);
       messagesRef.current = [...messagesRef.current.slice(-99), msg];
-    });
-
-    wsClient.connect();
+    };
+    
+    wsClient.onMessage(callback);
 
     return () => {
-      wsClient.disconnect();
+      // Remove this callback (simplified - in production use a proper cleanup)
     };
   }, []);
 
