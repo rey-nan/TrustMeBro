@@ -1,6 +1,9 @@
-import dotenv from 'dotenv';
+import { config } from 'dotenv';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+const __dirname = dirname(fileURLToPath(import.meta.url));
+config({ path: resolve(__dirname, '../../../.env') });
 
 
 
