@@ -84,8 +84,8 @@ export function AgentInbox() {
       const payload = lastMessage.payload as { toAgentId: string };
       if (payload.toAgentId === selectedAgentId) {
         loadInbox();
+        setUnreadCount((prev) => prev + 1);
       }
-      setUnreadCount((prev) => prev + 1);
     }
     if (lastMessage?.type === 'mention:new') {
       const payload = lastMessage.payload as { mentionedAgentId: string };
@@ -111,6 +111,7 @@ export function AgentInbox() {
     const res = await api.get<Message[]>(`/api/agents/${selectedAgentId}/inbox`);
     if (res.success && res.data) {
       setInbox(res.data ?? []);
+      setUnreadCount(0); // Reset when viewing inbox
     }
   };
 
