@@ -7,6 +7,59 @@ import path from 'path';
 import readline from 'readline';
 import { execSync, spawn } from 'child_process';
 
+async function checkApiRunning(): Promise<boolean> {
+  try {
+    const response = await fetch('http://localhost:3000/health', { signal: AbortSignal.timeout(3000) });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function startApiInBackground(rootDir: string): Promise<boolean> {
+  const spinner = ora('Starting API server...').start();
+
+  // Check if API dist exists, build if not
+  const apiDistPath = path.join(rootDir, 'packages', 'api', 'dist', 'index.js');
+  if (!fs.existsSync(apiDistPath)) {
+    spinner.text = 'Building API...';
+    try {
+      execSync('npm run build:core', { cwd: rootDir, stdio: 'ignore' });
+      execSync('npm run build:api', { cwd: rootDir, stdio: 'ignore' });
+    } catch {
+      spinner.fail('Failed to build API');
+      return false;
+    }
+  }
+
+  // Start API in background
+  const apiProcess = spawn('node', ['packages/api/dist/index.js'], {
+    cwd: rootDir,
+    detached: false,
+    stdio: 'ignore',
+    env: { ...process.env },
+  });
+
+  apiProcess.unref();
+
+  // Wait for API to be ready
+  const maxWait = 15000;
+  const interval = 500;
+  let elapsed = 0;
+
+  while (elapsed < maxWait) {
+    if (await checkApiRunning()) {
+      spinner.succeed('API server started on http://localhost:3000');
+      return true;
+    }
+    await new Promise((r) => setTimeout(r, interval));
+    elapsed += interval;
+  }
+
+  spinner.fail('API server failed to start');
+  return false;
+}
+
 const PROVIDERS = [
   { id: 'openrouter', name: 'OpenRouter', description: 'Free models available', keyUrl: 'https://openrouter.ai/keys' },
   { id: 'ollama', name: 'Ollama', description: 'Local — zero cost', keyUrl: 'https://ollama.ai' },
@@ -592,9 +645,24 @@ export function createSetupCommand(): Command {
     let agentName = '';
 
     if (createAgent) {
-      console.log(chalk.yellow('⚠ Start the API first: ') + chalk.cyan('npm run dev:api'));
-      console.log(chalk.dim('Then run this setup again to create your agent.'));
-      console.log();
+      const rootDir = process.cwd();
+
+      // Check if API is running
+      const apiRunning = await checkApiRunning();
+
+      if (!apiRunning) {
+        console.log(chalk.dim('API is not running. Starting it now...'));
+        const started = await startApiInBackground(rootDir);
+
+        if (!started) {
+          console.log(chalk.yellow('\n⚠ Could not start API automatically.'));
+          console.log('Please run in another terminal: ' + chalk.cyan('npm run dev:api'));
+          console.log('Then run: ' + chalk.cyan('tmb setup'));
+          console.log();
+          return;
+        }
+      }
+
       const result = await createFirstAgent();
       if (result) {
         agentId = result.agentId;
