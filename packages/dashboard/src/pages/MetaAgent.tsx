@@ -37,6 +37,7 @@ export function MetaAgent() {
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [showConfig, setShowConfig] = useState(false);
   const [envConfig, setEnvConfig] = useState<EnvConfig | null>(null);
+  const [configSaved, setConfigSaved] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -160,6 +161,40 @@ export function MetaAgent() {
           </button>
         </div>
       </div>
+
+      {configSaved && (
+        <div style={{
+          background: 'rgba(255,165,0,0.1)',
+          border: '1px solid orange',
+          borderRadius: 4,
+          padding: 12,
+          marginBottom: 16,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}>
+          <div>
+            <div style={{ fontWeight: 'bold', color: 'orange' }}>⚠ Config saved but not applied yet</div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+              The API is still using the old configuration. Restart the API to apply changes.
+            </div>
+          </div>
+          <button
+            onClick={() => setConfigSaved(false)}
+            style={{
+              padding: '4px 12px',
+              background: 'transparent',
+              border: '1px solid orange',
+              borderRadius: 4,
+              color: 'orange',
+              cursor: 'pointer',
+              fontSize: 11,
+            }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {showConfig && (
         <div style={{
@@ -290,7 +325,8 @@ Always provide correct URLs and commands when asked about the system.`}
                   await api.put('/api/meta/config', { systemPrompt: textarea.value });
                 }
 
-                alert('Config saved! Restart the API to apply changes.');
+                setConfigSaved(true);
+                setShowConfig(false);
               }}
               style={{
                 padding: '8px 16px',
