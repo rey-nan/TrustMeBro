@@ -150,22 +150,79 @@ export function MetaAgent() {
           marginBottom: 16,
         }}>
           <h3 style={{ marginBottom: 12 }}>Meta-Agent Configuration</h3>
-          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12 }}>
-            To change the LLM model, edit the <code style={{ color: 'var(--green)' }}>.env</code> file and restart the API:
+          
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>
+              Current Model: <span style={{ color: 'var(--green)' }}>{status?.activeProvider || 'loading...'}</span>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+              To change model: edit <code>.env</code> → LLM_DEFAULT_MODEL, then restart API
+            </div>
           </div>
-          <div style={{
-            background: 'var(--bg-primary)',
-            padding: 12,
-            borderRadius: 4,
-            fontFamily: 'monospace',
-            fontSize: 12,
-          }}>
-            <div>LLM_PROVIDER={status?.activeProvider || 'openrouter'}</div>
-            <div>LLM_DEFAULT_MODEL=your-model-name</div>
-            <div>LLM_API_KEY=your-api-key</div>
+
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
+              System Prompt (SOUL)
+            </label>
+            <textarea
+              id="meta-system-prompt"
+              defaultValue={`You are TrustMeBro's Meta-Agent. You help users manage their AI agent system.
+
+IMPORTANT:
+- Dashboard URL: http://localhost:5173
+- API URL: http://localhost:3000
+- To configure Telegram: run "node setup.js --telegram"
+- For external access: use ngrok (ngrok http 5173)
+
+Always provide correct URLs and commands when asked about the system.`}
+              style={{
+                width: '100%',
+                height: 200,
+                padding: 12,
+                background: 'var(--bg-primary)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 4,
+                fontSize: 12,
+                fontFamily: 'monospace',
+                color: 'var(--text-primary)',
+                resize: 'vertical',
+              }}
+            />
           </div>
-          <div style={{ marginTop: 12, fontSize: 11, color: 'var(--text-secondary)' }}>
-            Available providers: openrouter, groq, ollama, openai-compatible
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={async () => {
+                const textarea = document.getElementById('meta-system-prompt') as HTMLTextAreaElement;
+                if (textarea) {
+                  await api.put('/api/meta/config', { systemPrompt: textarea.value });
+                  alert('System prompt saved!');
+                }
+              }}
+              style={{
+                padding: '8px 16px',
+                background: 'var(--green)',
+                color: '#000',
+                border: 'none',
+                borderRadius: 4,
+                cursor: 'pointer',
+                fontWeight: 'bold',
+              }}
+            >
+              Save Config
+            </button>
+            <button
+              onClick={() => setShowConfig(false)}
+              style={{
+                padding: '8px 16px',
+                background: 'transparent',
+                border: '1px solid var(--border-color)',
+                borderRadius: 4,
+                cursor: 'pointer',
+              }}
+            >
+              Close
+            </button>
           </div>
         </div>
       )}

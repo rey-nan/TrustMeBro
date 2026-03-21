@@ -1,5 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import fs from 'fs';
+import path from 'path';
 import type { ApiResponse } from '../types.js';
 import type { MetaAgent } from '@trustmebro/core';
 
@@ -13,6 +15,38 @@ const chatSchema = z.object({
   message: z.string().min(1),
   conversationId: z.string().optional(),
 });
+
+const configSchema = z.object({
+  systemPrompt: z.string().optional(),
+  model: z.string().optional(),
+});
+
+const META_CONFIG_PATH = path.join(process.cwd(), 'data', 'meta-config.json');
+
+interface MetaConfig {
+  systemPrompt: string;
+  model: string;
+}
+
+function loadMetaConfig(): MetaConfig {
+  try {
+    if (fs.existsSync(META_CONFIG_PATH)) {
+      return JSON.parse(fs.readFileSync(META_CONFIG_PATH, 'utf-8'));
+    }
+  } catch {}
+  return {
+    systemPrompt: '',
+    model: process.env.LLM_DEFAULT_MODEL || 'deepseek/deepseek-chat',
+  };
+}
+
+function saveMetaConfig(config: MetaConfig): void {
+  const dir = path.dirname(META_CONFIG_PATH);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  fs.writeFileSync(META_CONFIG_PATH, JSON.stringify(config, null, 2));
+}
 
 export async function metaRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.post<{
@@ -44,6 +78,53 @@ export async function metaRoutes(fastify: FastifyInstance): Promise<void> {
           timestamp: Date.now(),
         });
       }
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return reply.code(500).send({
+        success: false,
+        error: message,
+        timestamp: Date.now(),
+      });
+    }
+  });
+
+  // Get Meta-Agent config
+  fastify.get('/api/meta/config', async (_request, reply) => {
+    const config = loadMetaConfig();
+    return reply.send({
+      success: true,
+      data: {
+        ...config,
+        currentModel: process.env.LLM_DEFAULT_MODEL || 'not set',
+        provider: process.env.LLM_PROVIDER || 'not set',
+      },
+      timestamp: Date.now(),
+    });
+  });
+
+  // Update Meta-Agent config
+  fastify.put<{
+    Body: z.infer<typeof configSchema>;
+    Reply: ApiResponse;
+  }>('/api/meta/config', async (request, reply) => {
+    try {
+      const parsed = configSchema.parse(request.body);
+      const current = loadMetaConfig();
+
+      if (parsed.systemPrompt !== undefined) {
+        current.systemPrompt = parsed.systemPrompt;
+      }
+      if (parsed.model !== undefined) {
+        current.model = parsed.model;
+      }
+
+      saveMetaConfig(current);
+
+      return reply.send({
+        success: true,
+        data: { message: 'Config saved. Restart API to apply model changes.' },
+        timestamp: Date.now(),
+      });
+    } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       return reply.code(500).send({
         success: false,
