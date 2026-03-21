@@ -516,7 +516,8 @@ async function createFirstAgent(): Promise<{ agentId: string; agentName: string 
   }
 }
 
-async function startAgentChat(agentId: string, agentName: string): Promise<void> {
+async function startAgentChat(agentId: string, agentName: string, projectRoot?: string): Promise<void> {
+  const rootDir = projectRoot || process.cwd();
   console.log();
   console.log(chalk.cyan('═'.repeat(50)));
   header(`  Chat with ${agentName}`);
@@ -583,6 +584,18 @@ async function startAgentChat(agentId: string, agentName: string): Promise<void>
       const spinner = ora('Thinking...').start();
 
       try {
+        // Check API first
+        if (!(await checkApiRunning())) {
+          spinner.fail('API is not running. Starting it...');
+          const apiReady = await ensureApiRunning(rootDir);
+          if (!apiReady) {
+            console.log(chalk.red('\nCould not start API. Run manually:'));
+            console.log(chalk.cyan('  node start.js'));
+            askQuestion();
+            return;
+          }
+        }
+
         const response = await fetch('http://localhost:3000/api/tasks', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -721,15 +734,37 @@ export function createSetupCommand(): Command {
         return;
       }
 
-      const agent = agents[0];
-      if (agent) {
-        console.log(chalk.green(`\n✓ Starting chat with ${agent.name}...\n`));
-        await startAgentChat(agent.id, agent.name);
-      } else {
+      if (agents.length === 0) {
         console.log(chalk.yellow('\nNo agents yet. You can create one by saying:'));
         console.log(chalk.cyan('"create an agent called [name] that [description]"'));
         console.log();
         await startAgentChat('meta', 'Meta-Agent');
+      } else if (agents.length === 1) {
+        console.log(chalk.green(`\n✓ Starting chat with ${agents[0].name}...\n`));
+        await startAgentChat(agents[0].id, agents[0].name);
+      } else {
+        // Multiple agents - let user choose
+        console.log();
+        const { selectedAgent } = await prompts({
+          type: 'select',
+          name: 'selectedAgent',
+          message: 'Which agent do you want to chat with?',
+          choices: [
+            ...agents.map((a: any) => ({ title: `${a.name} (${a.id})`, value: a.id })),
+            { title: '+ Create new agent', value: 'new' },
+          ],
+        });
+
+        if (selectedAgent === 'new') {
+          console.log(chalk.yellow('\nYou can create a new agent by saying:'));
+          console.log(chalk.cyan('"create an agent called [name] that [description]"'));
+          console.log();
+          await startAgentChat('meta', 'Meta-Agent');
+        } else if (selectedAgent) {
+          const agent = agents.find((a: any) => a.id === selectedAgent);
+          console.log(chalk.green(`\n✓ Starting chat with ${agent?.name}...\n`));
+          await startAgentChat(selectedAgent, agent?.name || 'Agent');
+        }
       }
       return;
     }
