@@ -3,6 +3,7 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
+    "skipLibCheck": true,
     "paths": {
       "@trustmebro/core": ["../core/src/index.ts"]
     }
