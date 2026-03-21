@@ -538,13 +538,25 @@ async function startAgentChat(agentId: string, agentName: string): Promise<void>
     let elapsed = 0;
 
     while (elapsed < maxWait) {
-      const response = await fetch(`http://localhost:3000/api/tasks/${taskId}`, {
-        signal: AbortSignal.timeout(10000),
-      });
-      const task: any = await response.json();
+      try {
+        const response = await fetch(`http://localhost:3000/api/tasks/${taskId}`, {
+          signal: AbortSignal.timeout(10000),
+        });
+        const json: any = await response.json();
 
-      if (task.status === 'success') return task.output || '(no output)';
-      if (task.status === 'failed') throw new Error(task.error || 'Task failed');
+        // API returns { success, data: { status, output, ... } } or { status, output, ... }
+        const task = json.data || json;
+
+        if (task.status === 'success') {
+          return task.output || '(no output)';
+        }
+        if (task.status === 'failed') {
+          throw new Error(task.error || 'Task failed');
+        }
+      } catch (err: any) {
+        if (err.message?.includes('Task failed')) throw err;
+        // Network error - continue polling
+      }
 
       process.stdout.write('.');
       await new Promise((resolve) => setTimeout(resolve, interval));
