@@ -938,10 +938,11 @@ export function createSetupCommand(): Command {
         console.log(chalk.green('✓ Build complete! Starting API...\n'));
         console.log(chalk.dim('Press Ctrl+C when done with setup to stop the server.\n'));
 
-        const apiProcess = spawn('node', ['packages/api/dist/index.js'], {
+        const apiDist = path.resolve(rootDir, 'packages', 'api', 'dist', 'index.js');
+        const apiProcess = spawn('node', [apiDist], {
           cwd: rootDir,
-          stdio: ['ignore', 'pipe', 'pipe'],
-          shell: isWindows,
+          stdio: 'inherit',
+          env: { ...process.env, NODE_ENV: 'production' },
         });
 
         // Wait for API to be ready
