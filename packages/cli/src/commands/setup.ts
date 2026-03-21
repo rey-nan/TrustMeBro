@@ -886,7 +886,7 @@ export function createSetupCommand(): Command {
         PORT: '3000',
         HOST: '0.0.0.0',
         NODE_ENV: 'development',
-        API_SECRET_KEY: 'your_secret_key_here',
+        API_SECRET_KEY: '',
         ALLOWED_ORIGINS: 'http://localhost:5173',
         DB_PATH: './data/trustmebro.db',
         SANDBOX_TYPE: 'docker',

@@ -126,9 +126,20 @@ export class MetaAgent {
 
   private async executeApiCall(method: string, endpoint: string, body?: unknown): Promise<unknown> {
     const url = `${this.apiBaseUrl}${endpoint}`;
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // Add API key if configured
+    const apiKey = process.env.API_SECRET_KEY;
+    if (apiKey) {
+      headers['x-api-key'] = apiKey;
+    }
+
     const options: RequestInit = {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       signal: AbortSignal.timeout(30000),
     };
 
