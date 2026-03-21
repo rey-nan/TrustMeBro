@@ -915,17 +915,50 @@ export function createSetupCommand(): Command {
       const rootDir = process.cwd();
 
       // Check if API is running
-      const apiRunning = await checkApiRunning();
+      let apiRunning = await checkApiRunning();
 
       if (!apiRunning) {
-        console.log(chalk.dim('API is not running. Starting it now...'));
-        const started = await startApiInBackground(rootDir);
+        console.log();
+        console.log(chalk.yellow('Starting API server...'));
+        console.log(chalk.dim('This may take a moment on first run.'));
+        console.log();
 
-        if (!started) {
-          console.log(chalk.yellow('\n⚠ Could not start API automatically.'));
-          console.log('Please run in another terminal: ' + chalk.cyan('npm run dev:api'));
-          console.log('Then run: ' + chalk.cyan('tmb setup'));
-          console.log();
+        // Build first
+        try {
+          execSync(`${npmCmd} run build:core`, { cwd: rootDir, stdio: 'inherit' });
+          execSync(`${npmCmd} run build:api`, { cwd: rootDir, stdio: 'inherit' });
+        } catch {
+          console.log(chalk.red('Build failed. Please run manually:'));
+          console.log(chalk.cyan('  npm run build:core'));
+          console.log(chalk.cyan('  npm run dev:api'));
+          return;
+        }
+
+        // Start API in foreground
+        console.log(chalk.green('✓ Build complete! Starting API...\n'));
+        console.log(chalk.dim('Press Ctrl+C when done with setup to stop the server.\n'));
+
+        const apiProcess = spawn(npmCmd, ['run', 'dev:api'], {
+          cwd: rootDir,
+          stdio: 'inherit',
+          shell: isWindows,
+        });
+
+        // Wait for API to be ready
+        const spinner = ora('Waiting for API...').start();
+        let ready = false;
+        for (let i = 0; i < 60; i++) {
+          await new Promise(r => setTimeout(r, 1000));
+          if (await checkApiRunning()) {
+            spinner.succeed('API ready!');
+            ready = true;
+            break;
+          }
+        }
+
+        if (!ready) {
+          spinner.fail('API failed to start');
+          apiProcess.kill();
           return;
         }
       }
