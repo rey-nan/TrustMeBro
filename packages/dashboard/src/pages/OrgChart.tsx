@@ -41,6 +41,7 @@ export function OrgChart() {
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [showDeptForm, setShowDeptForm] = useState(false);
+  const [editingDept, setEditingDept] = useState<Department | null>(null);
   const [connectedAgents, setConnectedAgents] = useState<Set<string>>(new Set());
 
   const { lastMessage } = useWebSocket();
@@ -165,10 +166,39 @@ export function OrgChart() {
           minWidth: 200,
         }}
       >
-        <div style={{ marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
           <div style={{ fontWeight: 'bold', color: dept.color, fontSize: 14 }}>{dept.name}</div>
-          <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{dept.description || 'No description'}</div>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button
+              onClick={() => setEditingDept(dept)}
+              style={{
+                padding: '2px 8px',
+                fontSize: 10,
+                background: 'transparent',
+                border: '1px solid var(--border-color)',
+                borderRadius: 4,
+                cursor: 'pointer',
+              }}
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => handleDeleteDept(dept.id)}
+              style={{
+                padding: '2px 8px',
+                fontSize: 10,
+                background: 'transparent',
+                border: '1px solid var(--red)',
+                color: 'var(--red)',
+                borderRadius: 4,
+                cursor: 'pointer',
+              }}
+            >
+              Delete
+            </button>
+          </div>
         </div>
+        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 12 }}>{dept.description || 'No description'}</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {deptAgents.map((agent) => renderAgentCard(agent, true))}
           {deptAgents.length === 0 && (
@@ -274,8 +304,17 @@ export function OrgChart() {
     );
   };
 
+  const handleDeleteDept = async (deptId: string) => {
+    if (!confirm('Delete this department? Agents will be unassigned.')) return;
+    await api.delete(`/api/departments/${deptId}`);
+    loadOrgData();
+  };
+
   const renderDeptForm = () => {
-    if (!showDeptForm) return null;
+    if (!showDeptForm && !editingDept) return null;
+
+    const isEditing = !!editingDept;
+    const dept = editingDept;
 
     return (
       <div style={{
@@ -295,36 +334,45 @@ export function OrgChart() {
           width: 500,
           maxWidth: '90vw',
         }}>
-          <h2 style={{ marginBottom: 24, color: 'var(--green)' }}>Create Department</h2>
+          <h2 style={{ marginBottom: 24, color: 'var(--green)' }}>
+            {isEditing ? 'Edit Department' : 'Create Department'}
+          </h2>
           <form onSubmit={async (e) => {
             e.preventDefault();
             const formData = new FormData(e.currentTarget);
-            const deptId = (formData.get('name') as string).toLowerCase().replace(/\s+/g, '-') + '-' + Date.now().toString(36);
-            await api.post('/api/departments', {
-              id: deptId,
+            const data = {
               name: formData.get('name'),
               description: formData.get('description'),
               color: formData.get('color'),
               leadAgentId: formData.get('leadAgentId') || undefined,
-            });
+            };
+
+            if (isEditing && dept) {
+              await api.put(`/api/departments/${dept.id}`, data);
+            } else {
+              const deptId = (formData.get('name') as string).toLowerCase().replace(/\s+/g, '-') + '-' + Date.now().toString(36);
+              await api.post('/api/departments', { ...data, id: deptId });
+            }
+
             setShowDeptForm(false);
+            setEditingDept(null);
             loadOrgData();
           }}>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>Name *</label>
-              <input name="name" type="text" required placeholder="Engineering" style={{ width: '100%' }} />
+              <input name="name" type="text" required placeholder="Engineering" defaultValue={dept?.name || ''} style={{ width: '100%' }} />
             </div>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>Description</label>
-              <input name="description" type="text" placeholder="What this department does" style={{ width: '100%' }} />
+              <input name="description" type="text" placeholder="What this department does" defaultValue={dept?.description || ''} style={{ width: '100%' }} />
             </div>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>Color</label>
-              <input name="color" type="color" defaultValue="#00ff88" />
+              <input name="color" type="color" defaultValue={dept?.color || '#00ff88'} />
             </div>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>Lead Agent</label>
-              <select name="leadAgentId" defaultValue="">
+              <select name="leadAgentId" defaultValue={dept?.leadAgentId || ''}>
                 <option value="">None</option>
                 {Object.values(orgData.agents).map((a) => (
                   <option key={a.id} value={a.id}>{a.name}</option>
@@ -332,8 +380,8 @@ export function OrgChart() {
               </select>
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button type="button" onClick={() => setShowDeptForm(false)}>Cancel</button>
-              <button type="submit">Create</button>
+              <button type="button" onClick={() => { setShowDeptForm(false); setEditingDept(null); }}>Cancel</button>
+              <button type="submit">{isEditing ? 'Save' : 'Create'}</button>
             </div>
           </form>
         </div>
@@ -362,6 +410,7 @@ export function OrgChart() {
       </div>
 
       {showDeptForm && renderDeptForm()}
+      {editingDept && renderDeptForm()}
 
       {showTaskForm && selectedAgent && (
         <TaskForm
