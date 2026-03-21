@@ -524,11 +524,9 @@ async function startAgentChat(agentId: string, agentName: string): Promise<void>
   console.log(chalk.cyan('═'.repeat(50)));
   console.log();
 
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    terminal: true,
-  });
+  // Keep stdin open
+  process.stdin.resume();
+  process.stdin.setEncoding('utf8');
 
   const waitForTask = async (taskId: string): Promise<string> => {
     const maxWait = 120000;
@@ -560,15 +558,15 @@ async function startAgentChat(agentId: string, agentName: string): Promise<void>
     throw new Error('Task timed out');
   };
 
-  // Handle Ctrl+C
-  process.on('SIGINT', () => {
-    console.log(chalk.dim('\n\nGoodbye! Not Skynet. Probably.\n'));
-    rl.close();
-    process.exit(0);
-  });
-
   const askQuestion = (): void => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      terminal: false,
+    });
+
     rl.question(chalk.cyan('You: '), async (input) => {
+      rl.close();
       const trimmed = input.trim();
 
       if (!trimmed) {
@@ -578,7 +576,6 @@ async function startAgentChat(agentId: string, agentName: string): Promise<void>
 
       if (trimmed.toLowerCase() === 'exit' || trimmed.toLowerCase() === 'quit') {
         console.log(chalk.dim('\nGoodbye! Not Skynet. Probably.\n'));
-        rl.close();
         process.exit(0);
         return;
       }
@@ -611,7 +608,6 @@ async function startAgentChat(agentId: string, agentName: string): Promise<void>
         console.log(chalk.red(`\nError: ${(err as Error).message}\n`));
       }
 
-      // IMPORTANT: continue the loop
       askQuestion();
     });
   };
@@ -619,10 +615,8 @@ async function startAgentChat(agentId: string, agentName: string): Promise<void>
   // Start the loop
   askQuestion();
 
-  // Keep process alive
-  await new Promise<void>((resolve) => {
-    rl.on('close', resolve);
-  });
+  // Keep process alive forever
+  await new Promise(() => {});
 }
 
 function header(msg: string): void {
