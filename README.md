@@ -34,11 +34,31 @@ npm run dev
 After setup, use `tmb` (short for `trustmebro`) to interact:
 ```bash
 tmb setup          # Re-run setup wizard
+tmb setup --telegram  # Configure Telegram only
 tmb status         # Check system status
 tmb agent list     # List agents
 tmb task run       # Run a task
+tmb meta           # Chat with Meta-Agent
 tmb workflow list  # List workflows
 ```
+
+## Telegram Integration (optional)
+
+Chat with your agents from anywhere via Telegram.
+
+### Setup
+Run the guided setup:
+```bash
+tmb setup --telegram
+```
+
+Or during initial setup, choose "Yes" when asked about Telegram.
+
+### How it works
+1. Create a bot via @BotFather on Telegram
+2. The setup wizard guides you through getting your token and chat ID
+3. Your agents become accessible via your personal Telegram bot
+4. Check your Telegram for a confirmation message when connected
 
 ## Providers
 

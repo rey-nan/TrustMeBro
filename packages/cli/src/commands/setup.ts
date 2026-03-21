@@ -87,6 +87,92 @@ async function validateTelegram(botToken: string): Promise<{ valid: boolean; cha
   }
 }
 
+async function configureTelegram(): Promise<{ token: string; chatId: string } | null> {
+  console.log();
+  console.log(chalk.bold('📱 Telegram Setup'));
+  console.log(chalk.dim('─'.repeat(50)));
+  console.log('Telegram lets you chat with your agents from anywhere.');
+  console.log("You'll need to create a bot — it takes about 2 minutes.");
+  console.log();
+
+  // Step 1 — Create bot
+  console.log(chalk.yellow('Step 1: Create your Telegram bot'));
+  console.log(chalk.yellow('─────────────────────────────────'));
+  console.log('1. Open Telegram on your phone or computer');
+  console.log('2. Search for: ' + chalk.cyan('@BotFather') + ' (the official bot creator)');
+  console.log('3. Start a chat and send: ' + chalk.cyan('/newbot'));
+  console.log('4. Choose a name for your bot (e.g. "My TrustMeBro")');
+  console.log('5. Choose a username ending in ' + chalk.cyan('"bot"') + ' (e.g. "mytrustmebro_bot")');
+  console.log('6. BotFather will give you a TOKEN that looks like:');
+  console.log(chalk.dim('   123456789:ABCdefGHIjklMNOpqrsTUVwxyz'));
+  console.log();
+
+  const { token } = await prompts({
+    type: 'text',
+    name: 'token',
+    message: 'Paste your bot token here:',
+    validate: (v: string) => v.includes(':') ? true : 'Invalid token format. It should contain ":"',
+  });
+
+  if (!token) return null;
+
+  // Step 2 — Get Chat ID
+  console.log();
+  console.log(chalk.yellow('Step 2: Get your Chat ID'));
+  console.log(chalk.yellow('─────────────────────────'));
+  console.log('1. Open Telegram and search for your bot (the username you chose)');
+  console.log('2. Start a chat with your bot and send any message (e.g. "hello")');
+  console.log('3. Open this URL in your browser (replace TOKEN with your token):');
+  console.log();
+  console.log(chalk.cyan(`   https://api.telegram.org/bot${token}/getUpdates`));
+  console.log();
+  console.log("4. Look for " + chalk.cyan('"chat":{"id":') + " followed by a number — that's your Chat ID");
+  console.log(chalk.dim('   Example: "chat":{"id":123456789,...}'));
+  console.log();
+  console.log(chalk.yellow('💡 Tip: If the page shows empty results, send another message to your bot and refresh.'));
+  console.log();
+
+  const { chatId } = await prompts({
+    type: 'text',
+    name: 'chatId',
+    message: 'Paste your Chat ID here:',
+    validate: (v: string) => /^\d+$/.test(v) ? true : 'Chat ID should be numbers only',
+  });
+
+  if (!chatId) return null;
+
+  // Test connection
+  const spinner = ora('Testing Telegram connection...').start();
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: '✅ TrustMeBro connected successfully!\n\nNot Skynet. Probably. 🤖',
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+    const data: any = await response.json();
+
+    if (data.ok) {
+      spinner.succeed('Telegram connected! Check your chat for a confirmation message.');
+      return { token, chatId };
+    } else {
+      spinner.fail(`Connection failed: ${data.description}`);
+      console.log();
+      console.log(chalk.yellow('Common issues:'));
+      console.log('- Make sure you sent a message to your bot first');
+      console.log('- Check that the token is correct (copy it exactly from BotFather)');
+      console.log('- Check that the Chat ID is correct (numbers only)');
+      return null;
+    }
+  } catch {
+    spinner.fail('Could not reach Telegram. Check your internet connection.');
+    return null;
+  }
+}
+
 async function createFirstAgent(): Promise<{ agentId: string; agentName: string } | null> {
   console.log();
   console.log(chalk.bold("Let's create your first agent!"));
@@ -294,8 +380,27 @@ function dim(msg: string): void {
 export function createSetupCommand(): Command {
   const cmd = new Command('setup');
   cmd.description('Interactive setup wizard');
+  cmd.option('--telegram', 'Configure Telegram only');
 
-  cmd.action(async () => {
+  cmd.action(async (options) => {
+    // Standalone Telegram configuration
+    if (options.telegram) {
+      const result = await configureTelegram();
+      if (result) {
+        saveEnv({
+          TELEGRAM_BOT_TOKEN: result.token,
+          TELEGRAM_CHAT_ID: result.chatId,
+        });
+        console.log();
+        console.log(chalk.green('✓ ') + 'Telegram configured successfully!');
+      } else {
+        console.log();
+        console.log(chalk.yellow('Telegram setup incomplete. Run ') + chalk.cyan('tmb setup --telegram') + chalk.yellow(' to try again.'));
+      }
+      return;
+    }
+
+    // Full setup flow
     console.log();
     console.log(chalk.cyan('═'.repeat(50)));
     console.log(chalk.bold('  TrustMeBro Setup'));
@@ -502,46 +607,36 @@ export function createSetupCommand(): Command {
     console.log(chalk.bold('Step 5/5: Telegram Integration (Optional)'));
     console.log(chalk.dim('─'.repeat(40)));
 
-    const { configureTelegram } = await prompts({
+    const { configureTelegramNow } = await prompts({
       type: 'confirm',
-      name: 'configureTelegram',
+      name: 'configureTelegramNow',
       message: 'Connect Telegram for remote access?',
       initial: false,
     }, { onCancel });
     if (cancelled) return;
 
-    if (configureTelegram) {
-      console.log();
-      console.log(chalk.dim('1. Open Telegram and search for @BotFather'));
-      console.log(chalk.dim('2. Send /newbot and follow the instructions'));
-      console.log(chalk.dim('3. Copy the bot token BotFather gives you'));
-      console.log();
+    if (configureTelegramNow) {
+      const telegramResult = await configureTelegram();
 
-      const { botToken } = await prompts({
-        type: 'password',
-        name: 'botToken',
-        message: 'Enter your Telegram bot token:',
-      }, { onCancel });
-      if (cancelled) return;
+      if (!telegramResult) {
+        const { retry } = await prompts({
+          type: 'confirm',
+          name: 'retry',
+          message: 'Would you like to try Telegram setup again?',
+          initial: false,
+        }, { onCancel });
 
-      const { chatId } = await prompts({
-        type: 'text',
-        name: 'chatId',
-        message: 'Enter your Telegram chat ID:',
-      }, { onCancel });
-      if (cancelled) return;
-
-      const spinnerTelegram = ora('Testing Telegram connection...').start();
-      const telegramValid = await validateTelegram(botToken);
-      if (telegramValid.valid) {
-        spinnerTelegram.succeed('Telegram connected!');
-        saveEnv({
-          TELEGRAM_BOT_TOKEN: botToken,
-          TELEGRAM_CHAT_ID: chatId,
-        });
+        if (retry && !cancelled) {
+          await configureTelegram();
+        } else {
+          console.log(chalk.dim('\nSkipping Telegram. You can set it up later by running: ') + chalk.cyan('tmb setup --telegram'));
+          console.log();
+        }
       } else {
-        spinnerTelegram.fail('Telegram connection failed');
-        console.log(chalk.yellow('You can configure it later in .env'));
+        saveEnv({
+          TELEGRAM_BOT_TOKEN: telegramResult.token,
+          TELEGRAM_CHAT_ID: telegramResult.chatId,
+        });
       }
     }
 
