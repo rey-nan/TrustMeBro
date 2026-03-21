@@ -934,13 +934,13 @@ export function createSetupCommand(): Command {
           return;
         }
 
-        // Start API in foreground
+        // Start API in foreground (without watch mode)
         console.log(chalk.green('✓ Build complete! Starting API...\n'));
         console.log(chalk.dim('Press Ctrl+C when done with setup to stop the server.\n'));
 
-        const apiProcess = spawn(npmCmd, ['run', 'dev:api'], {
+        const apiProcess = spawn('node', ['packages/api/dist/index.js'], {
           cwd: rootDir,
-          stdio: 'inherit',
+          stdio: ['ignore', 'pipe', 'pipe'],
           shell: isWindows,
         });
 
