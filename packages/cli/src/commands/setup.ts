@@ -954,16 +954,27 @@ export function createSetupCommand(): Command {
           return;
         }
 
-        // Start API in foreground (without watch mode)
+        // Start API in background (logs to file, not terminal)
         console.log(chalk.green('✓ Build complete! Starting API...\n'));
-        console.log(chalk.dim('Press Ctrl+C when done with setup to stop the server.\n'));
+        console.log(chalk.dim('API logs: data/api.log\n'));
+
+        // Ensure data/ exists
+        const dataDir = path.join(rootDir, 'data');
+        if (!fs.existsSync(dataDir)) {
+          fs.mkdirSync(dataDir, { recursive: true });
+        }
+
+        // Redirect logs to file
+        const logFile = fs.openSync(path.join(dataDir, 'api.log'), 'a');
 
         const apiDist = path.resolve(rootDir, 'packages', 'api', 'dist', 'index.js');
         const apiProcess = spawn('node', [apiDist], {
           cwd: rootDir,
-          stdio: 'inherit',
+          stdio: ['ignore', logFile, logFile],
+          detached: true,
           env: { ...process.env, NODE_ENV: 'production' },
         });
+        apiProcess.unref();
 
         // Wait for API to be ready
         const spinner = ora('Waiting for API...').start();
