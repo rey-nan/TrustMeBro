@@ -86,7 +86,7 @@ export async function knowledgeRoutes(fastify: FastifyInstance): Promise<void> {
     try {
       const parsed = knowledgeEntrySchema.parse(request.body);
 
-      const entry = await knowledgeBase.add(parsed);
+      const entry = await knowledgeBase.add(parsed as any);
 
       return reply.send({
         success: true,

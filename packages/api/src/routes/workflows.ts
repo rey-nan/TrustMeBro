@@ -84,7 +84,7 @@ export async function workflowsRoutes(fastify: FastifyInstance): Promise<void> {
     try {
       const parsed = createWorkflowSchema.parse(request.body);
 
-      const workflow = getWorkflowRegistry().create(parsed);
+      const workflow = getWorkflowRegistry().create(parsed as any);
 
       return reply.code(201).send({
         success: true,

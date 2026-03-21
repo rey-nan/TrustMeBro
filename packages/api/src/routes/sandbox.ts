@@ -181,7 +181,7 @@ export async function sandboxRoutes(fastify: FastifyInstance): Promise<void> {
       const result = await sb.execute({
         language: parsed.language,
         code: parsed.code,
-        files: parsed.files,
+        files: parsed.files as { path: string; content: string }[],
         timeoutMs: parsed.timeoutMs,
         memoryMb: parsed.memoryMb,
       });

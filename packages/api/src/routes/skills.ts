@@ -270,7 +270,7 @@ export async function skillsRoutes(fastify: FastifyInstance): Promise<void> {
 
     try {
       const parsed = createCustomSkillSchema.parse(request.body);
-      const skill = customSkillRegistry.create(parsed);
+      const skill = customSkillRegistry.create(parsed as any);
 
       // Register in skill registry for immediate use
       const customSkill = customSkillRegistry.toSkill(skill.id);
@@ -339,7 +339,7 @@ export async function skillsRoutes(fastify: FastifyInstance): Promise<void> {
 
     try {
       const parsed = createCustomSkillSchema.parse(request.body);
-      const skill = customSkillRegistry.update(request.params.id, parsed);
+      const skill = customSkillRegistry.update(request.params.id, parsed as any);
 
       if (!skill) {
         return reply.code(404).send({

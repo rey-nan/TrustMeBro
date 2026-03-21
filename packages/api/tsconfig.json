@@ -4,8 +4,6 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "skipLibCheck": true,
-    "noImplicitAny": false,
-    "composite": false,
     "declaration": false,
     "declarationMap": false
   },
