@@ -5,7 +5,39 @@ import chalk from 'chalk';
 import fs from 'fs';
 import path from 'path';
 import readline from 'readline';
+import os from 'os';
 import { execSync, spawn } from 'child_process';
+
+// Cross-platform helpers
+const isWindows = os.platform() === 'win32';
+const npmCmd = isWindows ? 'npm.cmd' : 'npm';
+
+function runNpm(args: string[], options?: { cwd?: string; stdio?: string }) {
+  const cmd = isWindows ? 'npm.cmd' : 'npm';
+  return execSync(`${cmd} ${args.join(' ')}`, {
+    cwd: options?.cwd,
+    stdio: options?.stdio as any || 'inherit',
+  });
+}
+
+function spawnNpm(args: string[], options?: any) {
+  return spawn(npmCmd, args, options);
+}
+
+function openBrowser(url: string) {
+  try {
+    if (isWindows) {
+      execSync(`start ${url}`, { stdio: 'ignore' });
+    } else if (os.platform() === 'darwin') {
+      execSync(`open ${url}`, { stdio: 'ignore' });
+    } else {
+      execSync(`xdg-open ${url}`, { stdio: 'ignore' });
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 async function checkApiRunning(): Promise<boolean> {
   try {
@@ -24,8 +56,8 @@ async function startApiInBackground(rootDir: string): Promise<boolean> {
   if (!fs.existsSync(apiDistPath)) {
     spinner.text = 'Building API...';
     try {
-      execSync('npm run build:core', { cwd: rootDir, stdio: 'ignore' });
-      execSync('npm run build:api', { cwd: rootDir, stdio: 'ignore' });
+      runNpm(['run', 'build:core'], { cwd: rootDir });
+      runNpm(['run', 'build:api'], { cwd: rootDir });
     } catch {
       spinner.fail('Failed to build API');
       return false;
@@ -38,6 +70,7 @@ async function startApiInBackground(rootDir: string): Promise<boolean> {
     detached: false,
     stdio: 'ignore',
     env: { ...process.env },
+    shell: isWindows,
   });
 
   apiProcess.unref();
@@ -766,16 +799,9 @@ export function createSetupCommand(): Command {
       console.log();
 
       // Try to open browser
-      try {
-        if (process.platform === 'win32') {
-          execSync('start http://localhost:5173', { stdio: 'ignore' });
-        } else if (process.platform === 'darwin') {
-          execSync('open http://localhost:5173', { stdio: 'ignore' });
-        } else {
-          execSync('xdg-open http://localhost:5173', { stdio: 'ignore' });
-        }
+      if (openBrowser('http://localhost:5173')) {
         console.log(chalk.dim('Opening browser... ✓'));
-      } catch {
+      } else {
         console.log(chalk.dim('Open browser manually: ') + chalk.cyan('http://localhost:5173'));
       }
     } else if (interactionMode === 'both') {

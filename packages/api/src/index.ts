@@ -1,10 +1,31 @@
 import { config } from 'dotenv';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+// Cross-platform .env loading with multiple fallback paths
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const rootDir = resolve(__dirname, '..', '..', '..');
-config({ path: resolve(rootDir, '.env') });
+
+const envPaths = [
+  resolve(rootDir, '.env'),              // raiz do projeto
+  resolve(process.cwd(), '.env'),        // diretório atual
+  resolve(__dirname, '..', '.env'),      // pasta api/
+];
+
+let envLoaded = false;
+for (const envPath of envPaths) {
+  if (fs.existsSync(envPath)) {
+    config({ path: envPath });
+    envLoaded = true;
+    break;
+  }
+}
+
+if (!envLoaded) {
+  console.warn('[ENV] Warning: .env not found in any location. Using defaults.');
+}
 
 import Fastify from 'fastify';
 import cors from '@fastify/cors';

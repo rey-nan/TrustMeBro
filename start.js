@@ -113,7 +113,8 @@ switch (command) {
     
     const dev = spawn(npmCmd, ['run', 'dev'], {
       stdio: 'inherit',
-      cwd: rootDir
+      cwd: rootDir,
+      shell: isWindows
     });
     dev.on('exit', (code) => process.exit(code || 0));
     break;

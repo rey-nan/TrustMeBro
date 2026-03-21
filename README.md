@@ -110,6 +110,30 @@ node start.js
 
 ---
 
+## Platform Support
+
+| Feature | Windows | Linux | Mac |
+|---|---|---|---|
+| API + Dashboard | ✅ | ✅ | ✅ |
+| CLI (`tmb`) | ✅ | ✅ | ✅ |
+| Setup wizard | ✅ | ✅ | ✅ |
+| Docker Sandbox | ✅* | ✅ | ✅ |
+| Heartbeat/Cron | ✅ | ✅ | ✅ |
+
+*Docker Desktop required on Windows
+
+### Windows Notes
+- Use PowerShell or Windows Terminal
+- `tmb` requires `npm link packages/cli` or use `node start.js` instead
+- Docker requires Docker Desktop
+
+### Linux Notes
+- Works out of the box
+- Docker: `sudo apt install docker.io` (Ubuntu/Debian)
+- Make scripts executable: `chmod +x setup.js start.js`
+
+---
+
 ## License
 
 MIT
