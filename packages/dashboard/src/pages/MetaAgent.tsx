@@ -38,6 +38,7 @@ export function MetaAgent() {
   const [showConfig, setShowConfig] = useState(false);
   const [envConfig, setEnvConfig] = useState<EnvConfig | null>(null);
   const [configSaved, setConfigSaved] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState('openrouter');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -59,6 +60,7 @@ export function MetaAgent() {
     const res = await api.get<EnvConfig>('/api/meta/env');
     if (res.success && res.data) {
       setEnvConfig(res.data);
+      setSelectedProvider(res.data.LLM_PROVIDER || 'openrouter');
     }
   };
 
@@ -216,7 +218,8 @@ export function MetaAgent() {
                 <label style={{ display: 'block', fontSize: 11, color: 'var(--text-secondary)', marginBottom: 2 }}>Provider</label>
                 <select
                   id="env-LLM_PROVIDER"
-                  defaultValue={envConfig?.LLM_PROVIDER || 'openrouter'}
+                  value={selectedProvider}
+                  onChange={(e) => setSelectedProvider(e.target.value)}
                   style={{ width: '100%' }}
                 >
                   <option value="openrouter">OpenRouter</option>
@@ -312,8 +315,10 @@ Always provide correct URLs and commands when asked about the system.`}
             <button
               onClick={async () => {
                 // Save .env
-                const envData: Record<string, string> = {};
-                ['LLM_PROVIDER', 'LLM_API_KEY', 'LLM_DEFAULT_MODEL', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID'].forEach(key => {
+                const envData: Record<string, string> = {
+                  LLM_PROVIDER: selectedProvider,
+                };
+                ['LLM_API_KEY', 'LLM_DEFAULT_MODEL', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID'].forEach(key => {
                   const el = document.getElementById(`env-${key}`) as HTMLInputElement;
                   if (el) envData[key] = el.value;
                 });
