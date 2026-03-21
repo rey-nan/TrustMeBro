@@ -102,10 +102,10 @@ async function startApiInBackground(rootDir: string): Promise<boolean> {
 }
 
 const PROVIDERS = [
-  { id: 'ollama', name: '🖥  Ollama', description: 'FREE, runs on your computer (recommended)', keyUrl: 'https://ollama.ai/download', isFree: true, needsKey: false },
-  { id: 'groq', name: '⚡ Groq', description: 'FREE cloud, fastest responses', keyUrl: 'https://console.groq.com', isFree: true, needsKey: true },
+  { id: 'groq', name: '⚡ Groq', description: 'FREE cloud, fastest responses (recommended)', keyUrl: 'https://console.groq.com', isFree: true, needsKey: true },
   { id: 'openrouter', name: '🌐 OpenRouter', description: 'FREE cloud, many model choices', keyUrl: 'https://openrouter.ai/keys', isFree: true, needsKey: true },
   { id: 'openai-compatible', name: '🔧 OpenAI Compatible', description: 'Custom API endpoint', keyUrl: '', isFree: false, needsKey: true },
+  { id: 'ollama', name: '🖥  Ollama', description: 'FREE local, runs on your computer (requires install)', keyUrl: 'https://ollama.ai/download', isFree: true, needsKey: false },
 ];
 
 const OLLAMA_MODELS = [
@@ -655,16 +655,20 @@ export function createSetupCommand(): Command {
         return;
       }
     } else if (provider.id === 'groq') {
-      console.log(chalk.dim('Get your FREE Groq API key (no credit card needed):'));
-      console.log(chalk.dim('1. Go to: ') + chalk.cyan('https://console.groq.com'));
-      console.log(chalk.dim('2. Sign up with Google or email'));
-      console.log(chalk.dim('3. Click "API Keys" → "Create API Key"'));
-      console.log(chalk.dim('4. Copy the key and paste below'));
+      console.log(chalk.bold('Get your FREE Groq API key — takes 2 minutes:'));
       console.log();
+      console.log(chalk.dim('1. Open: ') + chalk.cyan('https://console.groq.com'));
+      console.log(chalk.dim('2. Click "Sign Up" (use Google for fastest signup)'));
+      console.log(chalk.dim('3. Click "API Keys" in the left menu'));
+      console.log(chalk.dim('4. Click "Create API Key"'));
+      console.log(chalk.dim('5. Give it any name (e.g. "TrustMeBro")'));
+      console.log(chalk.dim('6. Copy the key shown (starts with "gsk_")'));
+      console.log();
+      openBrowser('https://console.groq.com');
       const { key } = await prompts({
         type: 'password',
         name: 'key',
-        message: 'API Key:',
+        message: 'Paste your Groq API key:',
         validate: (v: string) => v.trim().length > 0 ? true : 'API key is required',
       }, { onCancel });
       if (cancelled) return;

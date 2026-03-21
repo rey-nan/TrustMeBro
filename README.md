@@ -45,22 +45,25 @@ That's it! Open http://localhost:5173 in your browser.
 
 ## AI Models — Which one to choose?
 
-TrustMeBro works with several AI providers. Here's what we recommend:
-
-### 🥇 Ollama (Best for beginners)
-- **Free forever** — runs on your computer
-- **No account needed** — no sign up, no API key
-- **Private** — your data never leaves your machine
-- The setup wizard installs it automatically!
-
-### 🥈 Groq (Best free cloud option)
-- Free tier — no credit card required
-- Fast responses
+### ⚡ Groq (Recommended for beginners)
+- **Free** — no credit card required
+- **No install** — works on any system instantly
+- **Fast** — cloud-based, quick responses
 - Get a free key at: https://console.groq.com
 
-### 🥉 OpenRouter (Most model choices)
-- Access to many free models
+### 🌐 OpenRouter (Most model choices)
+- **Free** tier available
+- Access to many different AI models
 - Get a free key at: https://openrouter.ai/keys
+
+### 🔧 OpenAI Compatible
+- For advanced users with their own API
+
+### 🖥  Ollama (Local, zero cost)
+- Runs entirely on your computer
+- No account, no API key, fully private
+- Requires manual installation first
+- Best for: privacy-focused users with 8GB+ RAM
 
 ---
 
