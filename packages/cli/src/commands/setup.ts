@@ -923,8 +923,14 @@ export function createSetupCommand(): Command {
         console.log(chalk.dim('This may take a moment on first run.'));
         console.log();
 
-        // Build first
+        // Build first (with clean)
         try {
+          // Clean old builds
+          const coreDist = path.join(rootDir, 'packages', 'core', 'dist');
+          const apiDistDir = path.join(rootDir, 'packages', 'api', 'dist');
+          if (fs.existsSync(coreDist)) fs.rmSync(coreDist, { recursive: true });
+          if (fs.existsSync(apiDistDir)) fs.rmSync(apiDistDir, { recursive: true });
+
           execSync(`${npmCmd} run build:core`, { cwd: rootDir, stdio: 'inherit' });
           execSync(`${npmCmd} run build:api`, { cwd: rootDir, stdio: 'inherit' });
         } catch {
