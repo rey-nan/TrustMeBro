@@ -49,28 +49,36 @@ async function checkApiRunning(): Promise<boolean> {
 }
 
 async function startApiInBackground(rootDir: string): Promise<boolean> {
-  const apiDist = path.resolve(rootDir, 'packages', 'api', 'dist', 'index.js');
+  const npmCmd = isWindows ? 'npm.cmd' : 'npm';
 
-  // 1. Build API if needed
-  if (!fs.existsSync(apiDist)) {
-    const buildSpinner = ora('Building API...').start();
-    try {
-      runNpm(['run', 'build:core'], { cwd: rootDir });
-      runNpm(['run', 'build:api'], { cwd: rootDir });
-      buildSpinner.succeed('API built!');
-    } catch {
-      buildSpinner.fail('Failed to build API');
-      return false;
-    }
-  }
+  // 1. Check if already running
+  try {
+    const check = await fetch('http://localhost:3000/health', { signal: AbortSignal.timeout(2000) });
+    if (check.ok) return true;
+  } catch { /* not running */ }
 
-  // 2. Check if already running
-  if (await checkApiRunning()) {
-    return true;
+  // 2. Always build first (ensures fresh code)
+  const buildSpinner = ora('Building API (first time may take a minute)...').start();
+  try {
+    execSync(`${npmCmd} run build:core`, { cwd: rootDir, stdio: 'ignore' });
+    execSync(`${npmCmd} run build:api`, { cwd: rootDir, stdio: 'ignore' });
+    buildSpinner.succeed('Build complete!');
+  } catch {
+    buildSpinner.fail('Build failed');
+    console.log(chalk.red('\nBuild error. Please run manually:'));
+    console.log(chalk.yellow('  npm run build:core'));
+    console.log(chalk.yellow('  npm run dev:api'));
+    return false;
   }
 
   // 3. Start API in background
-  const spinner = ora('Starting API server...').start();
+  const apiDist = path.resolve(rootDir, 'packages', 'api', 'dist', 'index.js');
+
+  if (!fs.existsSync(apiDist)) {
+    console.log(chalk.red('\nAPI build file not found after build. Please run manually:'));
+    console.log(chalk.yellow('  npm run dev:api'));
+    return false;
+  }
 
   const apiProcess = spawn('node', [apiDist], {
     cwd: rootDir,
@@ -78,26 +86,38 @@ async function startApiInBackground(rootDir: string): Promise<boolean> {
     stdio: 'ignore',
     env: { ...process.env },
   });
-
   apiProcess.unref();
 
-  // 4. Wait for API to be ready (up to 30 seconds)
-  const maxWait = 30000;
-  const interval = 1000;
+  // 4. Wait up to 60 seconds with feedback every 10s
+  const spinner = ora('Starting API server...').start();
+  const maxWait = 60000;
+  const interval = 2000;
   let elapsed = 0;
 
   while (elapsed < maxWait) {
     await new Promise((r) => setTimeout(r, interval));
     elapsed += interval;
 
-    if (await checkApiRunning()) {
-      spinner.succeed('API server started on http://localhost:3000');
-      return true;
+    try {
+      const response = await fetch('http://localhost:3000/health', {
+        signal: AbortSignal.timeout(1000),
+      });
+      if (response.ok) {
+        spinner.succeed('API server ready!');
+        return true;
+      }
+    } catch { /* still starting */ }
+
+    if (elapsed % 10000 === 0) {
+      spinner.text = `Starting API server... (${elapsed / 1000}s)`;
     }
-    spinner.text = `Starting API server... (${elapsed / 1000}s)`;
   }
 
   spinner.fail('API server took too long to start');
+  console.log(chalk.yellow('\nTry starting manually in another terminal:'));
+  console.log(chalk.cyan('  npm run dev:api'));
+  console.log(chalk.yellow('Then run setup again:'));
+  console.log(chalk.cyan('  node setup.js'));
   return false;
 }
 
@@ -664,7 +684,6 @@ export function createSetupCommand(): Command {
       console.log(chalk.dim('5. Give it any name (e.g. "TrustMeBro")'));
       console.log(chalk.dim('6. Copy the key shown (starts with "gsk_")'));
       console.log();
-      openBrowser('https://console.groq.com');
       const { key } = await prompts({
         type: 'password',
         name: 'key',
