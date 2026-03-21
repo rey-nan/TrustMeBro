@@ -529,6 +529,25 @@ async function startAgentChat(agentId: string, agentName: string, projectRoot?: 
   process.stdin.resume();
   process.stdin.setEncoding('utf8');
 
+  // Quick actions (no LLM needed)
+  const quickActions: Record<string, string> = {
+    'dashboard': 'The dashboard is at: http://localhost:5173',
+    'link': 'The dashboard is at: http://localhost:5173\nThe API is at: http://localhost:3000',
+    'url': 'The dashboard is at: http://localhost:5173\nThe API is at: http://localhost:3000',
+    'onde acesso': 'The dashboard is at: http://localhost:5173',
+    'endereco': 'The dashboard is at: http://localhost:5173',
+  };
+
+  const matchQuickAction = (input: string): string | null => {
+    const lower = input.toLowerCase();
+    for (const [key, response] of Object.entries(quickActions)) {
+      if (lower.includes(key)) {
+        return response;
+      }
+    }
+    return null;
+  };
+
   const waitForTask = async (taskId: string): Promise<string> => {
     const maxWait = 120000;
     const interval = 2000;
@@ -578,6 +597,16 @@ async function startAgentChat(agentId: string, agentName: string, projectRoot?: 
       if (trimmed.toLowerCase() === 'exit' || trimmed.toLowerCase() === 'quit') {
         console.log(chalk.dim('\nGoodbye! Not Skynet. Probably.\n'));
         process.exit(0);
+        return;
+      }
+
+      // Check for quick actions first (no LLM needed)
+      const quickResponse = matchQuickAction(trimmed);
+      if (quickResponse) {
+        console.log();
+        console.log(quickResponse);
+        console.log();
+        askQuestion();
         return;
       }
 
