@@ -30,10 +30,19 @@ const SUGGESTIONS = [
 ];
 
 export function MetaAgent() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try {
+      const saved = localStorage.getItem('meta-agent-messages');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [conversationId, setConversationId] = useState<string | undefined>();
+  const [conversationId, setConversationId] = useState<string | undefined>(() => {
+    return localStorage.getItem('meta-agent-conversation') || undefined;
+  });
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [showConfig, setShowConfig] = useState(false);
   const [envConfig, setEnvConfig] = useState<EnvConfig | null>(null);
@@ -48,6 +57,18 @@ export function MetaAgent() {
   useEffect(() => {
     loadStatus();
   }, []);
+
+  // Persist messages to localStorage
+  useEffect(() => {
+    localStorage.setItem('meta-agent-messages', JSON.stringify(messages));
+  }, [messages]);
+
+  // Persist conversationId to localStorage
+  useEffect(() => {
+    if (conversationId) {
+      localStorage.setItem('meta-agent-conversation', conversationId);
+    }
+  }, [conversationId]);
 
   const loadStatus = async () => {
     const res = await api.get<SystemStatus>('/api/status');
@@ -118,6 +139,8 @@ export function MetaAgent() {
   const handleClear = () => {
     setMessages([]);
     setConversationId(undefined);
+    localStorage.removeItem('meta-agent-messages');
+    localStorage.removeItem('meta-agent-conversation');
   };
 
   return (

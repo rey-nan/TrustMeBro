@@ -180,6 +180,20 @@ async function main() {
   });
   setMetaAgent(metaAgent);
 
+  // Initialize Telegram Bot
+  const { TelegramBot } = await import('@trustmebro/core');
+  const telegramBot = new TelegramBot();
+  if (telegramBot.isConfigured()) {
+    telegramBot.setOnMessage(async (chatId: string, text: string) => {
+      const result = await metaAgent.chat(text);
+      return result.message;
+    });
+    telegramBot.startPolling();
+    logger.info('Telegram bot started');
+  } else {
+    logger.info('Telegram not configured, skipping bot');
+  }
+
   // Register existing custom skills
   for (const customDef of customSkillRegistry.list()) {
     const customSkill = customSkillRegistry.toSkill(customDef.id);
