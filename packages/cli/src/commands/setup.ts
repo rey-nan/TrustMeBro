@@ -627,6 +627,56 @@ function dim(msg: string): void {
   console.log(chalk.dim(msg));
 }
 
+async function ensureApiRunning(rootDir: string): Promise<boolean> {
+  // Check if already running
+  if (await checkApiRunning()) {
+    return true;
+  }
+
+  console.log(chalk.yellow('\nAPI is not running. Starting it now...'));
+
+  // Build if needed
+  const apiDist = path.resolve(rootDir, 'packages', 'api', 'dist', 'index.js');
+  if (!fs.existsSync(apiDist)) {
+    console.log(chalk.dim('Building API...'));
+    try {
+      execSync(`${npmCmd} run build:core`, { cwd: rootDir, stdio: 'ignore' });
+      execSync(`${npmCmd} run build:api`, { cwd: rootDir, stdio: 'ignore' });
+    } catch {
+      console.log(chalk.red('Build failed.'));
+      return false;
+    }
+  }
+
+  // Start API in background (logs to file)
+  const dataDir = path.join(rootDir, 'data');
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+  const logFile = fs.openSync(path.join(dataDir, 'api.log'), 'a');
+
+  const apiProcess = spawn('node', [apiDist], {
+    cwd: rootDir,
+    stdio: ['ignore', logFile, logFile],
+    detached: true,
+    env: { ...process.env },
+  });
+  apiProcess.unref();
+
+  // Wait up to 30 seconds
+  const spinner = ora('Starting API...').start();
+  for (let i = 0; i < 30; i++) {
+    await new Promise(r => setTimeout(r, 1000));
+    if (await checkApiRunning()) {
+      spinner.succeed('API ready!');
+      return true;
+    }
+  }
+
+  spinner.fail('API failed to start');
+  return false;
+}
+
 export function createSetupCommand(): Command {
   const cmd = new Command('setup');
   cmd.description('Interactive setup wizard');
@@ -662,6 +712,14 @@ export function createSetupCommand(): Command {
           agents = JSON.parse(fs.readFileSync(agentsFile, 'utf-8')) || [];
         }
       } catch {}
+
+      // Ensure API is running
+      const apiReady = await ensureApiRunning(rootDir);
+      if (!apiReady) {
+        console.log(chalk.red('\nCould not start API. Please run manually:'));
+        console.log(chalk.cyan('  node start.js'));
+        return;
+      }
 
       const agent = agents[0];
       if (agent) {
