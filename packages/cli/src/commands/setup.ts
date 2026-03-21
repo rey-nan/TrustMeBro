@@ -631,8 +631,11 @@ export function createSetupCommand(): Command {
   const cmd = new Command('setup');
   cmd.description('Interactive setup wizard');
   cmd.option('--telegram', 'Configure Telegram only');
+  cmd.option('--skip', 'Skip setup, go straight to chat');
 
   cmd.action(async (options) => {
+    const rootDir = process.cwd();
+
     // Standalone Telegram configuration
     if (options.telegram) {
       const result = await configureTelegram();
@@ -650,6 +653,80 @@ export function createSetupCommand(): Command {
       return;
     }
 
+    // --skip flag: jump straight to chat
+    if (options.skip) {
+      const agentsFile = path.resolve(rootDir, 'data', 'agents.json');
+      let agents: any[] = [];
+      try {
+        if (fs.existsSync(agentsFile)) {
+          agents = JSON.parse(fs.readFileSync(agentsFile, 'utf-8')) || [];
+        }
+      } catch {}
+
+      const agent = agents[0];
+      if (agent) {
+        console.log(chalk.green(`\n✓ Starting chat with ${agent.name}...\n`));
+        await startAgentChat(agent.id, agent.name);
+      } else {
+        console.log(chalk.yellow('\nNo agents yet. You can create one by saying:'));
+        console.log(chalk.cyan('"create an agent called [name] that [description]"'));
+        console.log();
+        await startAgentChat('meta', 'Meta-Agent');
+      }
+      return;
+    }
+
+    // Check if already configured
+    const env = loadEnv();
+    const isConfigured = env.LLM_PROVIDER && env.LLM_DEFAULT_MODEL && (env.LLM_API_KEY || env.LLM_PROVIDER === 'ollama');
+
+    if (isConfigured) {
+      console.log();
+      console.log(chalk.cyan('═'.repeat(50)));
+      console.log(chalk.bold('  TrustMeBro Setup'));
+      console.log(chalk.cyan('═'.repeat(50)));
+      console.log();
+      console.log(chalk.green('✓ Already configured!'));
+      console.log(chalk.cyan('Provider: ') + env.LLM_PROVIDER);
+      console.log(chalk.cyan('Model:    ') + env.LLM_DEFAULT_MODEL);
+      console.log();
+
+      const { action } = await prompts({
+        type: 'select',
+        name: 'action',
+        message: 'What do you want to do?',
+        choices: [
+          { title: 'Chat now (skip setup)', value: 'chat' },
+          { title: 'Run full setup again', value: 'setup' },
+        ],
+        initial: 0,
+      });
+
+      if (action === 'chat') {
+        const agentsFile = path.resolve(rootDir, 'data', 'agents.json');
+        let agents: any[] = [];
+        try {
+          if (fs.existsSync(agentsFile)) {
+            agents = JSON.parse(fs.readFileSync(agentsFile, 'utf-8')) || [];
+          }
+        } catch {}
+
+        const agent = agents[0];
+        if (agent) {
+          console.log(chalk.green(`\n✓ Starting chat with ${agent.name}...\n`));
+          await startAgentChat(agent.id, agent.name);
+        } else {
+          console.log(chalk.yellow('\nNo agents yet. You can create one by saying:'));
+          console.log(chalk.cyan('"create an agent called [name] that [description]"'));
+          console.log();
+          await startAgentChat('meta', 'Meta-Agent');
+        }
+        return;
+      }
+
+      // action === 'setup' - continue with full setup below
+    }
+
     // Full setup flow
     console.log();
     console.log(chalk.cyan('═'.repeat(50)));
@@ -660,8 +737,6 @@ export function createSetupCommand(): Command {
     console.log(chalk.dim("Welcome! Let's get you up and running."));
     console.log(chalk.dim('This will take about 2 minutes.'));
     console.log();
-
-    const rootDir = process.cwd();
 
     let cancelled = false;
     const onCancel = () => {
