@@ -4,8 +4,10 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "skipLibCheck": true,
+    "noImplicitAny": false,
     "paths": {
-      "@trustmebro/core": ["../core/src/index.ts"]
+      "@trustmebro/core": ["../core/src/index.ts"],
+      "@trustmebro/core/*": ["../core/src/*"]
     }
   },
   "include": ["src/**/*"]
