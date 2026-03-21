@@ -1,3 +1,3 @@
-export * from './types';
-export * from './embeddings';
-export * from './knowledge-base';
+export * from './types.js';
+export * from './embeddings.js';
+export * from './knowledge-base.js';
