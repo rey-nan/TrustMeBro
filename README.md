@@ -54,6 +54,22 @@ tmb setup --telegram
 
 Or during initial setup, choose "Yes" when asked about Telegram.
 
+### Getting your Chat ID
+
+> ⚠ **Important:** The number at the start of your bot token is the **BOT ID**, not yours.
+> Example: `123456789:ABC...` — `123456789` is the bot, not you.
+
+**Easiest way — use @userinfobot:**
+1. Open Telegram
+2. Search for `@userinfobot`
+3. Send any message
+4. It replies instantly with your personal ID (the number next to "Id:")
+
+**Alternative — via browser:**
+1. Send a message to your bot
+2. Open: `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates`
+3. Find `"chat":{"id":` — that number is your Chat ID
+
 ### How it works
 1. Create a bot via @BotFather on Telegram
 2. The setup wizard guides you through getting your token and chat ID

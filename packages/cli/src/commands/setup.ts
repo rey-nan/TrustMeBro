@@ -171,18 +171,27 @@ async function configureTelegram(): Promise<{ token: string; chatId: string } | 
 
   // Step 2 — Get Chat ID
   console.log();
-  console.log(chalk.yellow('Step 2: Get your Chat ID'));
-  console.log(chalk.yellow('─────────────────────────'));
-  console.log('1. Open Telegram and search for your bot (the username you chose)');
-  console.log('2. Start a chat with your bot and send any message (e.g. "hello")');
-  console.log('3. Open this URL in your browser (replace TOKEN with your token):');
+  console.log(chalk.yellow('Step 2: Get your personal Chat ID'));
+  console.log(chalk.yellow('───────────────────────────────────'));
+  console.log(chalk.red('⚠ Important: The number in your bot token is the BOT ID, not yours!'));
+  console.log(chalk.dim('  Token: 123456789:ABC... → 123456789 is the BOT, not you'));
   console.log();
-  console.log(chalk.cyan(`   https://api.telegram.org/bot${token}/getUpdates`));
+  console.log('Your Chat ID is YOUR personal Telegram ID. Easiest way to get it:');
   console.log();
-  console.log("4. Look for " + chalk.cyan('"chat":{"id":') + " followed by a number — that's your Chat ID");
-  console.log(chalk.dim('   Example: "chat":{"id":123456789,...}'));
+  console.log('1. Open Telegram');
+  console.log('2. Search for: ' + chalk.cyan('@userinfobot'));
+  console.log('3. Start a chat and send any message (e.g. "hi")');
+  console.log('4. It will instantly reply with your info, including your ID:');
+  console.log(chalk.dim('   Id: 987654321'));
+  console.log(chalk.dim('   First: John'));
+  console.log(chalk.dim('   ...'));
   console.log();
-  console.log(chalk.yellow('💡 Tip: If the page shows empty results, send another message to your bot and refresh.'));
+  console.log(chalk.green('✓ That number next to "Id:" is your Chat ID!'));
+  console.log();
+  console.log(chalk.dim('Alternative method (if @userinfobot doesn\'t work):'));
+  console.log(chalk.dim('1. Send a message to your bot'));
+  console.log(chalk.dim(`2. Visit: https://api.telegram.org/bot${token}/getUpdates`));
+  console.log(chalk.dim('3. Find "chat":{"id": — that number is your Chat ID'));
   console.log();
 
   const { chatId } = await prompts({
