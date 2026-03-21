@@ -5,36 +5,40 @@ Run AI agents on your computer. Free. No coding required.
 
 ---
 
-## What you need before starting
+## Install
 
-- [Node.js](https://nodejs.org) — download and install (choose "LTS" version)
-- [Git](https://git-scm.com/downloads) — download and install
-- That's it!
+### Linux / Mac (one command)
+```bash
+curl -fsSL https://raw.githubusercontent.com/rey-nan/TrustMeBro/main/install.sh | bash
+```
+
+### Windows (PowerShell — one command)
+```powershell
+iwr -useb https://raw.githubusercontent.com/rey-nan/TrustMeBro/main/install.ps1 | iex
+```
+
+The installer will:
+- Install Node.js and Git if needed
+- Download TrustMeBro
+- Build the project
+- Open the setup wizard
 
 ---
 
-## Install in 3 steps
+## Manual install (alternative)
 
-### Step 1 — Download TrustMeBro
-Open your terminal (PowerShell on Windows, Terminal on Mac/Linux) and run:
+### What you need
+- [Node.js](https://nodejs.org) (LTS version)
+- [Git](https://git-scm.com/downloads)
+
+### Steps
 ```bash
 git clone https://github.com/rey-nan/TrustMeBro.git
 cd TrustMeBro
-```
-
-> **Don't know how to open a terminal?**
-> - Windows: Press `Win + X` → click "Windows PowerShell" or "Terminal"
-> - Mac: Press `Cmd + Space` → type "Terminal" → press Enter
-> - Linux: Press `Ctrl + Alt + T`
-
-### Step 2 — Run setup
-```bash
 node setup.js
 ```
 
-The setup wizard will guide you through everything.
-
-### Step 3 — Start using it
+### Start using it
 ```bash
 node start.js
 ```
