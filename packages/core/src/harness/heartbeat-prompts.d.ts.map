@@ -1,0 +1,1 @@
+{"version":3,"file":"heartbeat-prompts.d.ts","sourceRoot":"","sources":["heartbeat-prompts.ts"],"names":[],"mappings":"AAAA,wBAAgB,eAAe,CAAC,OAAO,EAAE,MAAM,EAAE,MAAM,EAAE,MAAM,GAAG,MAAM,CAcvE;AAED,wBAAgB,kBAAkB,IAAI,MAAM,CAE3C;AAED,wBAAgB,sBAAsB,CAAC,QAAQ,EAAE,MAAM,GAAG;IACxD,MAAM,EAAE,IAAI,GAAG,QAAQ,CAAC;IACxB,OAAO,EAAE,MAAM,CAAC;CACjB,CASA"}

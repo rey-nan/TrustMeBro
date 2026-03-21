@@ -5,10 +5,9 @@
     "rootDir": "./src",
     "skipLibCheck": true,
     "noImplicitAny": false,
-    "paths": {
-      "@trustmebro/core": ["../core/src/index.ts"],
-      "@trustmebro/core/*": ["../core/src/*"]
-    }
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false
   },
   "include": ["src/**/*"]
 }

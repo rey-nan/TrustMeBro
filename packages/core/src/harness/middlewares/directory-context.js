@@ -1,0 +1,90 @@
+import { readFileSync, existsSync, readdirSync } from 'fs';
+import { join } from 'path';
+import pino from 'pino';
+export class DirectoryContextMiddleware {
+    name = 'directory-context';
+    phase = 'pre-execution';
+    workspacePath;
+    skillRegistry = null;
+    logger;
+    constructor(workspacePath, skillRegistry, logger) {
+        this.workspacePath = workspacePath;
+        this.skillRegistry = skillRegistry ?? null;
+        this.logger = logger ?? pino({ name: 'DirectoryContextMiddleware' });
+    }
+    async execute(ctx) {
+        const injectedContexts = [];
+        const agentWorkspace = ctx.config.workspacePath ?? this.workspacePath;
+        if (!agentWorkspace || !existsSync(agentWorkspace)) {
+            return { continue: true };
+        }
+        try {
+            const soulContent = this.readFileIfExists(join(agentWorkspace, 'SOUL.md'));
+            if (soulContent) {
+                injectedContexts.push(`AGENT SOUL:\n${soulContent}`);
+            }
+            const workingContent = this.readFileIfExists(join(agentWorkspace, 'WORKING.md'));
+            const memoryContent = this.readFileIfExists(join(agentWorkspace, 'MEMORY.md'));
+            let envContext = 'AGENT ENVIRONMENT:\n';
+            envContext += `Workspace: ${agentWorkspace}\n`;
+            const files = this.listFiles(agentWorkspace);
+            if (files.length > 0) {
+                envContext += `Available files: ${files.join(', ')}\n`;
+            }
+            if (workingContent) {
+                envContext += `\nCurrent task state (WORKING.md):\n${workingContent}\n`;
+            }
+            if (memoryContent) {
+                const recentMemory = this.extractRecentMemory(memoryContent, 3);
+                if (recentMemory) {
+                    envContext += `\nRelevant memory (last 3 entries):\n${recentMemory}\n`;
+                }
+            }
+            injectedContexts.push(envContext);
+            if (this.skillRegistry && ctx.config.skillIds && ctx.config.skillIds.length > 0) {
+                const toolsContext = this.skillRegistry.buildToolsContext(ctx.config.skillIds);
+                if (toolsContext) {
+                    injectedContexts.push(toolsContext);
+                }
+            }
+            this.logger.info({ agentId: ctx.agentId, workspace: agentWorkspace }, 'Directory context injected');
+        }
+        catch (error) {
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            this.logger.warn({ error: message }, 'Failed to load directory context');
+        }
+        return {
+            continue: true,
+            injectedContext: injectedContexts.length > 0 ? injectedContexts.join('\n\n') : undefined,
+        };
+    }
+    readFileIfExists(path) {
+        if (existsSync(path)) {
+            try {
+                return readFileSync(path, 'utf-8');
+            }
+            catch {
+                return null;
+            }
+        }
+        return null;
+    }
+    listFiles(dir) {
+        try {
+            const entries = readdirSync(dir, { withFileTypes: true });
+            return entries
+                .filter((e) => e.isFile())
+                .map((e) => e.name)
+                .slice(0, 50);
+        }
+        catch {
+            return [];
+        }
+    }
+    extractRecentMemory(content, count) {
+        const lines = content.split('\n').filter((l) => l.trim());
+        const recent = lines.slice(-count * 3);
+        return recent.length > 0 ? recent.join('\n') : null;
+    }
+}
+//# sourceMappingURL=directory-context.js.map
