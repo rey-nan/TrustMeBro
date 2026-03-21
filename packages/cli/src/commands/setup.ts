@@ -524,13 +524,11 @@ async function startAgentChat(agentId: string, agentName: string): Promise<void>
   console.log(chalk.cyan('═'.repeat(50)));
   console.log();
 
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-
-  const ask = (prompt: string): Promise<string> => {
-    return new Promise((resolve) => {
-      rl.question(prompt, resolve);
-    });
-  };
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    terminal: true,
+  });
 
   const waitForTask = async (taskId: string): Promise<string> => {
     const maxWait = 120000;
@@ -543,8 +541,6 @@ async function startAgentChat(agentId: string, agentName: string): Promise<void>
           signal: AbortSignal.timeout(10000),
         });
         const json: any = await response.json();
-
-        // API returns { success, data: { status, output, ... } } or { status, output, ... }
         const task = json.data || json;
 
         if (task.status === 'success') {
@@ -555,7 +551,6 @@ async function startAgentChat(agentId: string, agentName: string): Promise<void>
         }
       } catch (err: any) {
         if (err.message?.includes('Task failed')) throw err;
-        // Network error - continue polling
       }
 
       process.stdout.write('.');
@@ -565,43 +560,69 @@ async function startAgentChat(agentId: string, agentName: string): Promise<void>
     throw new Error('Task timed out');
   };
 
-  while (true) {
-    const input = await ask(chalk.cyan('You: '));
+  // Handle Ctrl+C
+  process.on('SIGINT', () => {
+    console.log(chalk.dim('\n\nGoodbye! Not Skynet. Probably.\n'));
+    rl.close();
+    process.exit(0);
+  });
 
-    if (!input.trim()) continue;
-    if (input.trim().toLowerCase() === 'exit' || input.trim().toLowerCase() === 'quit') {
-      console.log(chalk.dim('Goodbye!'));
-      rl.close();
-      return;
-    }
+  const askQuestion = (): void => {
+    rl.question(chalk.cyan('You: '), async (input) => {
+      const trimmed = input.trim();
 
-    const spinner = ora('Thinking...').start();
-
-    try {
-      const response = await fetch('http://localhost:3000/api/tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agentId, input }),
-      });
-      const data: any = await response.json();
-
-      if (!data.success) {
-        spinner.fail(data.error || 'Failed to submit task');
-        continue;
+      if (!trimmed) {
+        askQuestion();
+        return;
       }
 
-      spinner.text = 'Processing';
-      const output = await waitForTask(data.data.taskId);
-      spinner.stop();
+      if (trimmed.toLowerCase() === 'exit' || trimmed.toLowerCase() === 'quit') {
+        console.log(chalk.dim('\nGoodbye! Not Skynet. Probably.\n'));
+        rl.close();
+        process.exit(0);
+        return;
+      }
 
-      console.log();
-      console.log(output);
-      console.log();
-    } catch (err) {
-      spinner.stop();
-      console.log(chalk.red(`Error: ${(err as Error).message}`));
-    }
-  }
+      const spinner = ora('Thinking...').start();
+
+      try {
+        const response = await fetch('http://localhost:3000/api/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agentId, input: trimmed }),
+        });
+        const data: any = await response.json();
+
+        if (!data.success) {
+          spinner.fail(data.error || 'Failed to submit task');
+          askQuestion();
+          return;
+        }
+
+        spinner.text = 'Processing';
+        const output = await waitForTask(data.data.taskId);
+        spinner.stop();
+
+        console.log();
+        console.log(output);
+        console.log();
+      } catch (err) {
+        spinner.stop();
+        console.log(chalk.red(`\nError: ${(err as Error).message}\n`));
+      }
+
+      // IMPORTANT: continue the loop
+      askQuestion();
+    });
+  };
+
+  // Start the loop
+  askQuestion();
+
+  // Keep process alive
+  await new Promise<void>((resolve) => {
+    rl.on('close', resolve);
+  });
 }
 
 function header(msg: string): void {
