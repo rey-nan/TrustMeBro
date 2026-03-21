@@ -1,10 +1,8 @@
 import { Command } from 'commander';
-import prompts from 'prompts';
 import ora from 'ora';
 import chalk from 'chalk';
-import readline from 'readline';
+import * as readline from 'readline';
 import { ApiClient } from '../client.js';
-import { error, success, info, header, dim } from '../output.js';
 
 interface MetaAction {
   type: string;
@@ -29,13 +27,11 @@ export function createMetaCommand(client: ApiClient): Command {
     const verbose = options.verbose || false;
 
     if (options.message) {
-      // Non-interactive mode
       await sendSingleMessage(client, options.message, verbose);
       return;
     }
 
-    // Interactive mode
-    await startInteractiveSession(client, verbose);
+    await startInteractiveChat(client, verbose);
   });
 
   return cmd;
@@ -48,7 +44,6 @@ async function sendSingleMessage(client: ApiClient, message: string, verbose: bo
     const result = await client.post<MetaResponse>('/api/meta/chat', { message });
     spinner.stop();
 
-    // Show actions if verbose
     if (verbose && result.actions?.length > 0) {
       console.log();
       for (const action of result.actions) {
@@ -61,155 +56,149 @@ async function sendSingleMessage(client: ApiClient, message: string, verbose: bo
     console.log();
   } catch (err) {
     spinner.stop();
-    error((err as Error).message);
+    console.error(chalk.red('✗ ') + (err as Error).message);
     process.exit(1);
   }
 }
 
-async function startInteractiveSession(client: ApiClient, verbose: boolean): Promise<void> {
-  console.log();
-  console.log(chalk.cyan('═'.repeat(50)));
-  header('  TrustMeBro Meta-Agent');
-  dim("  Type your request in natural language.");
-  dim("  Type 'exit' to quit, 'history' to see past conversations.");
-  dim("  Type 'clear' to start a new conversation.");
-  dim("  Type 'status' to check system status.");
-  console.log(chalk.cyan('═'.repeat(50)));
-  console.log();
-
+async function startInteractiveChat(client: ApiClient, verbose: boolean): Promise<void> {
   let conversationId: string | undefined;
 
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
+    terminal: true,
   });
 
-  const ask = (prompt: string): Promise<string> => {
-    return new Promise((resolve) => {
-      rl.question(prompt, resolve);
-    });
-  };
-
-  const processMessage = async (message: string): Promise<void> => {
-    const spinner = ora('Meta-Agent is thinking...').start();
-
-    try {
-      const result = await client.post<MetaResponse>('/api/meta/chat', {
-        message,
-        conversationId,
-      });
-
-      conversationId = result.conversationId;
-      spinner.stop();
-
-      // Show actions if verbose
-      if (verbose && result.actions?.length > 0) {
-        console.log();
-        for (const action of result.actions) {
-          if (action.type === 'error') {
-            console.log(chalk.red(`  ${action.message}`));
-          } else {
-            console.log(chalk.green(`  ${action.message}`));
-          }
-        }
-      }
-
-      console.log();
-      console.log(result.message);
-      console.log();
-    } catch (err) {
-      spinner.stop();
-      error((err as Error).message);
-    }
-  };
-
-  const handleCommand = async (input: string): Promise<boolean> => {
-    const cmd = input.trim().toLowerCase();
-
-    if (cmd === 'exit' || cmd === 'quit') {
-      console.log(chalk.dim('Goodbye!'));
-      rl.close();
-      return true;
-    }
-
-    if (cmd === 'clear') {
-      conversationId = undefined;
-      console.log(chalk.dim('Conversation cleared. Starting fresh.'));
-      console.log();
-      return false;
-    }
-
-    if (cmd === 'status') {
-      const spinner = ora('Fetching status...').start();
-      try {
-        const status = await client.get<any>('/api/status');
-        spinner.stop();
-        console.log();
-        console.log(chalk.cyan('Provider: ') + status.activeProvider);
-        console.log(chalk.cyan('Agents:   ') + status.agentsRegistered);
-        console.log(chalk.cyan('Tasks:    ') + status.totalTasks);
-        console.log();
-      } catch (err) {
-        spinner.stop();
-        error((err as Error).message);
-      }
-      return false;
-    }
-
-    if (cmd === 'history') {
-      const spinner = ora('Fetching conversations...').start();
-      try {
-        const conversations = await client.get<any[]>('/api/meta/conversations');
-        spinner.stop();
-
-        if (conversations.length === 0) {
-          console.log(chalk.dim('No conversations yet.'));
-        } else {
-          console.log();
-          for (const conv of conversations.slice(0, 5)) {
-            const date = new Date(conv.updatedAt).toLocaleString();
-            const msgs = conv.messages?.length || 0;
-            console.log(chalk.cyan(`  ${conv.id}`) + ` — ${msgs} messages — ${date}`);
-          }
-          console.log();
-        }
-      } catch (err) {
-        spinner.stop();
-        error((err as Error).message);
-      }
-      return false;
-    }
-
-    return false;
-  };
-
-  // Main loop
-  const loop = async (): Promise<void> => {
-    while (true) {
-      const input = await ask(chalk.cyan('You: '));
-
-      if (!input.trim()) continue;
-
-      const isCommand = await handleCommand(input);
-      if (isCommand) break;
-
-      if (['exit', 'quit', 'clear', 'status', 'history'].includes(input.trim().toLowerCase())) {
-        continue;
-      }
-
-      await processMessage(input);
-    }
-  };
-
   // Handle Ctrl+C gracefully
-  rl.on('close', () => {
-    console.log(chalk.dim('\nGoodbye!'));
+  process.on('SIGINT', () => {
+    console.log(chalk.dim('\n\nGoodbye! Not Skynet. Probably.\n'));
+    rl.close();
     process.exit(0);
   });
 
-  process.on('SIGINT', () => {
-    rl.close();
-  });
+  console.log();
+  console.log(chalk.cyan('═'.repeat(50)));
+  console.log(chalk.bold('  TrustMeBro Meta-Agent'));
+  console.log(chalk.dim("  Type your message in natural language."));
+  console.log(chalk.dim("  Commands: exit, clear, status, history"));
+  console.log(chalk.cyan('═'.repeat(50)));
+  console.log();
 
-  await loop();
+  const askQuestion = (): void => {
+    rl.question(chalk.green('You: '), async (input) => {
+      const userInput = input.trim();
+
+      // Empty line - ask again
+      if (!userInput) {
+        askQuestion();
+        return;
+      }
+
+      // Exit command
+      if (userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
+        console.log(chalk.dim('\nGoodbye! Not Skynet. Probably.\n'));
+        rl.close();
+        process.exit(0);
+        return;
+      }
+
+      // Clear command
+      if (userInput.toLowerCase() === 'clear') {
+        conversationId = undefined;
+        console.log(chalk.dim('Conversation cleared.\n'));
+        askQuestion();
+        return;
+      }
+
+      // Status command
+      if (userInput.toLowerCase() === 'status') {
+        const spinner = ora('Fetching status...').start();
+        try {
+          const status = await client.get<any>('/api/status');
+          spinner.stop();
+          console.log();
+          console.log(chalk.cyan('Provider: ') + status.activeProvider);
+          console.log(chalk.cyan('Agents:   ') + status.agentsRegistered);
+          console.log(chalk.cyan('Tasks:    ') + status.totalTasks);
+          console.log();
+        } catch (err) {
+          spinner.stop();
+          console.log(chalk.red('Error: ') + (err as Error).message);
+        }
+        askQuestion();
+        return;
+      }
+
+      // History command
+      if (userInput.toLowerCase() === 'history') {
+        const spinner = ora('Fetching conversations...').start();
+        try {
+          const conversations = await client.get<any[]>('/api/meta/conversations');
+          spinner.stop();
+
+          if (conversations.length === 0) {
+            console.log(chalk.dim('No conversations yet.'));
+          } else {
+            console.log();
+            for (const conv of conversations.slice(0, 5)) {
+              const date = new Date(conv.updatedAt).toLocaleString();
+              const msgs = conv.messages?.length || 0;
+              console.log(chalk.cyan(`  ${conv.id}`) + ` — ${msgs} messages — ${date}`);
+            }
+          }
+          console.log();
+        } catch (err) {
+          spinner.stop();
+          console.log(chalk.red('Error: ') + (err as Error).message);
+        }
+        askQuestion();
+        return;
+      }
+
+      // Process message
+      const spinner = ora('Meta-Agent is thinking...').start();
+      try {
+        const result = await client.post<MetaResponse>('/api/meta/chat', {
+          message: userInput,
+          conversationId,
+        });
+
+        conversationId = result.conversationId;
+        spinner.stop();
+
+        // Show actions if verbose
+        if (verbose && result.actions?.length > 0) {
+          console.log();
+          console.log(chalk.dim('Actions taken:'));
+          for (const action of result.actions) {
+            if (action.type === 'error') {
+              console.log(chalk.red(`  ✗ ${action.message}`));
+            } else {
+              console.log(chalk.green(`  ✓ ${action.message}`));
+            }
+          }
+        }
+
+        console.log();
+        console.log(chalk.blue('Meta-Agent: ') + result.message);
+        console.log();
+      } catch (err) {
+        spinner.stop();
+        console.log(chalk.red('Error: ') + (err as Error).message);
+        console.log();
+      }
+
+      // IMPORTANT: Continue the loop
+      askQuestion();
+    });
+  };
+
+  // Start the loop
+  askQuestion();
+
+  // Keep process alive
+  await new Promise<void>((resolve) => {
+    rl.on('close', resolve);
+  });
 }
