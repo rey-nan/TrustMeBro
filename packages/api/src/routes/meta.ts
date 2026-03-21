@@ -134,6 +134,85 @@ export async function metaRoutes(fastify: FastifyInstance): Promise<void> {
     }
   });
 
+  // Get .env config
+  fastify.get('/api/meta/env', async (_request, reply) => {
+    const envPath = path.join(process.cwd(), '.env');
+    const env: Record<string, string> = {};
+
+    try {
+      if (fs.existsSync(envPath)) {
+        const content = fs.readFileSync(envPath, 'utf-8');
+        for (const line of content.split('\n')) {
+          const match = line.match(/^([^#=]+)=(.*)$/);
+          if (match) env[match[1].trim()] = match[2].trim();
+        }
+      }
+    } catch {}
+
+    return reply.send({
+      success: true,
+      data: {
+        LLM_PROVIDER: env.LLM_PROVIDER || '',
+        LLM_API_KEY: env.LLM_API_KEY ? '••••••••' + env.LLM_API_KEY.slice(-4) : '',
+        LLM_DEFAULT_MODEL: env.LLM_DEFAULT_MODEL || '',
+        LLM_BASE_URL: env.LLM_BASE_URL || '',
+        TELEGRAM_BOT_TOKEN: env.TELEGRAM_BOT_TOKEN ? '••••••••' : '',
+        TELEGRAM_CHAT_ID: env.TELEGRAM_CHAT_ID || '',
+      },
+      timestamp: Date.now(),
+    });
+  });
+
+  // Update .env config
+  fastify.put<{
+    Body: Record<string, string>;
+    Reply: ApiResponse;
+  }>('/api/meta/env', async (request, reply) => {
+    const envPath = path.join(process.cwd(), '.env');
+    const body = request.body as Record<string, string>;
+
+    try {
+      // Read current .env
+      let envContent = '';
+      if (fs.existsSync(envPath)) {
+        envContent = fs.readFileSync(envPath, 'utf-8');
+      }
+
+      // Parse and update
+      const lines = envContent.split('\n');
+      const updated: Record<string, string> = {};
+      for (const line of lines) {
+        const match = line.match(/^([^#=]+)=(.*)$/);
+        if (match) updated[match[1].trim()] = match[2].trim();
+      }
+
+      // Apply changes (skip masked values)
+      const editableKeys = ['LLM_PROVIDER', 'LLM_API_KEY', 'LLM_DEFAULT_MODEL', 'LLM_BASE_URL', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID'];
+      for (const key of editableKeys) {
+        if (body[key] !== undefined && !body[key].startsWith('••••')) {
+          updated[key] = body[key];
+        }
+      }
+
+      // Write back
+      const newContent = Object.entries(updated).map(([k, v]) => `${k}=${v}`).join('\n') + '\n';
+      fs.writeFileSync(envPath, newContent);
+
+      return reply.send({
+        success: true,
+        data: { message: '.env saved. Restart API to apply changes.' },
+        timestamp: Date.now(),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return reply.code(500).send({
+        success: false,
+        error: message,
+        timestamp: Date.now(),
+      });
+    }
+  });
+
   fastify.get('/api/meta/conversations', async (_request, reply) => {
     if (!metaAgent) {
       return reply.code(500).send({
