@@ -49,47 +49,55 @@ async function checkApiRunning(): Promise<boolean> {
 }
 
 async function startApiInBackground(rootDir: string): Promise<boolean> {
-  const spinner = ora('Starting API server...').start();
+  const apiDist = path.resolve(rootDir, 'packages', 'api', 'dist', 'index.js');
 
-  // Check if API dist exists, build if not
-  const apiDistPath = path.join(rootDir, 'packages', 'api', 'dist', 'index.js');
-  if (!fs.existsSync(apiDistPath)) {
-    spinner.text = 'Building API...';
+  // 1. Build API if needed
+  if (!fs.existsSync(apiDist)) {
+    const buildSpinner = ora('Building API...').start();
     try {
       runNpm(['run', 'build:core'], { cwd: rootDir });
       runNpm(['run', 'build:api'], { cwd: rootDir });
+      buildSpinner.succeed('API built!');
     } catch {
-      spinner.fail('Failed to build API');
+      buildSpinner.fail('Failed to build API');
       return false;
     }
   }
 
-  // Start API in background
-  const apiProcess = spawn('node', ['packages/api/dist/index.js'], {
+  // 2. Check if already running
+  if (await checkApiRunning()) {
+    return true;
+  }
+
+  // 3. Start API in background
+  const spinner = ora('Starting API server...').start();
+
+  const apiProcess = spawn('node', [apiDist], {
     cwd: rootDir,
-    detached: false,
+    detached: true,
     stdio: 'ignore',
     env: { ...process.env },
-    shell: isWindows,
   });
 
   apiProcess.unref();
 
-  // Wait for API to be ready
-  const maxWait = 15000;
-  const interval = 500;
+  // 4. Wait for API to be ready (up to 30 seconds)
+  const maxWait = 30000;
+  const interval = 1000;
   let elapsed = 0;
 
   while (elapsed < maxWait) {
+    await new Promise((r) => setTimeout(r, interval));
+    elapsed += interval;
+
     if (await checkApiRunning()) {
       spinner.succeed('API server started on http://localhost:3000');
       return true;
     }
-    await new Promise((r) => setTimeout(r, interval));
-    elapsed += interval;
+    spinner.text = `Starting API server... (${elapsed / 1000}s)`;
   }
 
-  spinner.fail('API server failed to start');
+  spinner.fail('API server took too long to start');
   return false;
 }
 
