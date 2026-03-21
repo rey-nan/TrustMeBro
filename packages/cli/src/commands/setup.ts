@@ -102,17 +102,117 @@ async function startApiInBackground(rootDir: string): Promise<boolean> {
 }
 
 const PROVIDERS = [
-  { id: 'openrouter', name: 'OpenRouter', description: 'Free models available', keyUrl: 'https://openrouter.ai/keys' },
-  { id: 'ollama', name: 'Ollama', description: 'Local — zero cost', keyUrl: 'https://ollama.ai' },
-  { id: 'groq', name: 'Groq', description: 'Free tier — fast inference', keyUrl: 'https://console.groq.com' },
-  { id: 'openai-compatible', name: 'OpenAI Compatible', description: 'Any OpenAI-compatible API', keyUrl: '' },
+  { id: 'ollama', name: '🖥  Ollama', description: 'FREE, runs on your computer (recommended)', keyUrl: 'https://ollama.ai/download', isFree: true, needsKey: false },
+  { id: 'groq', name: '⚡ Groq', description: 'FREE cloud, fastest responses', keyUrl: 'https://console.groq.com', isFree: true, needsKey: true },
+  { id: 'openrouter', name: '🌐 OpenRouter', description: 'FREE cloud, many model choices', keyUrl: 'https://openrouter.ai/keys', isFree: true, needsKey: true },
+  { id: 'openai-compatible', name: '🔧 OpenAI Compatible', description: 'Custom API endpoint', keyUrl: '', isFree: false, needsKey: true },
+];
+
+const OLLAMA_MODELS = [
+  { title: 'llama3.2:3b — Small and fast (2GB)', value: 'llama3.2:3b' },
+  { title: 'llama3.2:1b — Tiny, very fast (1GB)', value: 'llama3.2:1b' },
+  { title: 'mistral:7b — Smarter but slower (4GB)', value: 'mistral:7b' },
+];
+
+const GROQ_MODELS = [
+  { title: 'llama-3.1-8b-instant — Fast and capable (free)', value: 'llama-3.1-8b-instant' },
+  { title: 'llama-3.3-70b-versatile — Smarter (free)', value: 'llama-3.3-70b-versatile' },
+  { title: 'gemma2-9b-it — Google model (free)', value: 'gemma2-9b-it' },
 ];
 
 const OPENROUTER_MODELS = [
-  { id: 'deepseek/deepseek-chat', name: 'deepseek/deepseek-chat', description: 'Smart and fast' },
-  { id: 'meta-llama/llama-3.3-70b-instruct:free', name: 'Llama 3.3 70B', description: 'Large free model' },
-  { id: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash', description: 'Google free model' },
+  { title: 'deepseek/deepseek-chat — Smart and fast (free)', value: 'deepseek/deepseek-chat' },
+  { title: 'meta-llama/llama-3.2-3b-instruct:free — Lightweight (free)', value: 'meta-llama/llama-3.2-3b-instruct:free' },
+  { title: 'google/gemini-2.0-flash-exp:free — Google model (free)', value: 'google/gemini-2.0-flash-exp:free' },
 ];
+
+async function checkOllamaRunning(): Promise<boolean> {
+  try {
+    const response = await fetch('http://localhost:11434/api/tags', { signal: AbortSignal.timeout(3000) });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function setupOllama(): Promise<boolean> {
+  console.log();
+  console.log(chalk.bold('📦 Ollama Setup'));
+  console.log(chalk.dim('─'.repeat(50)));
+  console.log('Ollama runs AI models on your computer for FREE.');
+  console.log('No account needed. Your data never leaves your machine.');
+  console.log();
+
+  // Check if already running
+  if (await checkOllamaRunning()) {
+    console.log(chalk.green('✓ Ollama is already running!'));
+    return true;
+  }
+
+  // Guide installation
+  console.log(chalk.yellow('Ollama is not installed or not running.'));
+  console.log();
+
+  if (isWindows) {
+    console.log('1. Download Ollama from:');
+    console.log(chalk.cyan('   https://ollama.ai/download/windows'));
+    console.log('2. Run the installer (OllamaSetup.exe)');
+    console.log('3. Wait for installation to complete');
+    console.log('4. Ollama will start automatically');
+    console.log();
+    openBrowser('https://ollama.ai/download/windows');
+  } else if (os.platform() === 'darwin') {
+    console.log('1. Download Ollama from:');
+    console.log(chalk.cyan('   https://ollama.ai/download/mac'));
+    console.log('2. Open the downloaded file and drag Ollama to Applications');
+    console.log('3. Open Ollama from Applications');
+    console.log();
+    openBrowser('https://ollama.ai/download/mac');
+  } else {
+    console.log('Run this command to install Ollama:');
+    console.log(chalk.cyan('   curl -fsSL https://ollama.ai/install.sh | sh'));
+    console.log();
+  }
+
+  // Wait for user
+  console.log(chalk.dim('After installing Ollama, press Enter to continue...'));
+  await new Promise<void>((resolve) => {
+    process.stdin.once('data', () => resolve());
+  });
+
+  // Check again
+  if (await checkOllamaRunning()) {
+    console.log(chalk.green('✓ Ollama is running!'));
+    
+    // Download a default model
+    console.log();
+    const { downloadModel } = await prompts({
+      type: 'confirm',
+      name: 'downloadModel',
+      message: 'Download a small AI model (llama3.2:3b, ~2GB)?',
+      initial: true,
+    });
+
+    if (downloadModel) {
+      const spinner = ora('Downloading llama3.2:3b...').start();
+      try {
+        execSync('ollama pull llama3.2:3b', { stdio: 'ignore' });
+        spinner.succeed('Model downloaded!');
+      } catch {
+        spinner.fail('Failed to download. Run manually: ollama pull llama3.2:3b');
+      }
+    }
+    return true;
+  }
+
+  console.log(chalk.yellow('⚠ Ollama still not running. Please start it manually.'));
+  console.log(chalk.dim('Press Enter when ready...'));
+  await new Promise<void>((resolve) => {
+    process.stdin.once('data', () => resolve());
+  });
+
+  return await checkOllamaRunning();
+}
 
 function getEnvPath(): string {
   return path.join(process.cwd(), '.env');
@@ -522,12 +622,14 @@ export function createSetupCommand(): Command {
     };
 
     // Step 1: Provider & API Key
-    console.log(chalk.bold('Step 1/5: LLM Provider'));
+    console.log(chalk.bold('Step 1/5: AI Provider'));
     console.log(chalk.dim('─'.repeat(40)));
+    console.log(chalk.dim('Ollama is recommended for beginners — free, private, no account needed.'));
+    console.log();
     const { providerChoice } = await prompts({
       type: 'select',
       name: 'providerChoice',
-      message: 'Which LLM provider do you want to use?',
+      message: 'Which AI provider do you want to use?',
       choices: PROVIDERS.map((p) => ({
         title: `${p.name} — ${p.description}`,
         value: p.id,
@@ -538,36 +640,60 @@ export function createSetupCommand(): Command {
     const provider = PROVIDERS.find((p) => p.id === providerChoice)!;
 
     console.log();
-    console.log(chalk.bold('Step 2/5: API Key & Model'));
+    console.log(chalk.bold('Step 2/5: Configuration'));
     console.log(chalk.dim('─'.repeat(40)));
 
     let apiKey = '';
-    let baseUrl = '';
+    let baseUrl = 'http://localhost:11434';
 
     if (provider.id === 'ollama') {
-      console.log(chalk.dim('Make sure Ollama is running: ') + chalk.cyan(provider.keyUrl));
-      const response = await prompts({
-        type: 'text',
-        name: 'baseUrl',
-        message: 'Ollama URL:',
-        initial: 'http://localhost:11434',
+      // Setup Ollama
+      const ollamaReady = await setupOllama();
+      if (!ollamaReady) {
+        console.log(chalk.yellow('⚠ Ollama is required for this provider.'));
+        console.log(chalk.dim('Please install Ollama and run setup again.'));
+        return;
+      }
+    } else if (provider.id === 'groq') {
+      console.log(chalk.dim('Get your FREE Groq API key (no credit card needed):'));
+      console.log(chalk.dim('1. Go to: ') + chalk.cyan('https://console.groq.com'));
+      console.log(chalk.dim('2. Sign up with Google or email'));
+      console.log(chalk.dim('3. Click "API Keys" → "Create API Key"'));
+      console.log(chalk.dim('4. Copy the key and paste below'));
+      console.log();
+      const { key } = await prompts({
+        type: 'password',
+        name: 'key',
+        message: 'API Key:',
+        validate: (v: string) => v.trim().length > 0 ? true : 'API key is required',
       }, { onCancel });
       if (cancelled) return;
-      baseUrl = response.baseUrl;
+      apiKey = key;
+    } else if (provider.id === 'openrouter') {
+      console.log(chalk.dim('Get your FREE OpenRouter API key:'));
+      console.log(chalk.dim('1. Go to: ') + chalk.cyan('https://openrouter.ai/keys'));
+      console.log(chalk.dim('2. Sign in with Google'));
+      console.log(chalk.dim('3. Click "Create Key"'));
+      console.log(chalk.dim('4. Copy the key and paste below'));
+      console.log();
+      const { key } = await prompts({
+        type: 'password',
+        name: 'key',
+        message: 'API Key:',
+        validate: (v: string) => v.trim().length > 0 ? true : 'API key is required',
+      }, { onCancel });
+      if (cancelled) return;
+      apiKey = key;
     } else {
-      if (provider.keyUrl) {
-        console.log(chalk.dim('Get your free key at: ') + chalk.cyan(provider.keyUrl));
-      }
-      if (provider.id === 'openai-compatible') {
-        const { url } = await prompts({
-          type: 'text',
-          name: 'url',
-          message: 'API Base URL:',
-          validate: (v: string) => v.trim().length > 0 ? true : 'URL is required',
-        }, { onCancel });
-        if (cancelled) return;
-        baseUrl = url;
-      }
+      // OpenAI Compatible
+      const { url } = await prompts({
+        type: 'text',
+        name: 'url',
+        message: 'API Base URL:',
+        validate: (v: string) => v.trim().length > 0 ? true : 'URL is required',
+      }, { onCancel });
+      if (cancelled) return;
+      baseUrl = url;
       const { key } = await prompts({
         type: 'password',
         name: 'key',
@@ -578,23 +704,27 @@ export function createSetupCommand(): Command {
       apiKey = key;
     }
 
-    // Validate key
-    const spinnerKey = ora('Validating API key...').start();
-    const isValid = await validateApiKey(provider.id, apiKey, baseUrl);
-    if (isValid) {
-      spinnerKey.succeed('API key validated!');
-    } else {
-      spinnerKey.fail('API key validation failed');
-      const { retry } = await prompts({ type: 'confirm', name: 'retry', message: 'Try again?', initial: true }, { onCancel });
-      if (!retry || cancelled) return;
-      const spinnerKey2 = ora('Validating API key...').start();
-      const isValid2 = await validateApiKey(provider.id, apiKey, baseUrl);
-      if (isValid2) {
-        spinnerKey2.succeed('API key validated!');
+    // Validate (skip for Ollama - already checked)
+    if (provider.needsKey) {
+      const spinnerKey = ora('Validating API key...').start();
+      const isValid = await validateApiKey(provider.id, apiKey, baseUrl);
+      if (isValid) {
+        spinnerKey.succeed('API key validated!');
       } else {
-        spinnerKey2.fail('API key still invalid. Please check and run setup again.');
-        return;
+        spinnerKey.fail('API key validation failed');
+        const { retry } = await prompts({ type: 'confirm', name: 'retry', message: 'Try again?', initial: true }, { onCancel });
+        if (!retry || cancelled) return;
+        const spinnerKey2 = ora('Validating API key...').start();
+        const isValid2 = await validateApiKey(provider.id, apiKey, baseUrl);
+        if (isValid2) {
+          spinnerKey2.succeed('API key validated!');
+        } else {
+          spinnerKey2.fail('API key still invalid. Please check and run setup again.');
+          return;
+        }
       }
+    } else {
+      console.log(chalk.green('✓ Ollama ready!'));
     }
 
     // Step 3: Model
@@ -604,14 +734,84 @@ export function createSetupCommand(): Command {
 
     let model = '';
 
-    if (provider.id === 'openrouter') {
+    if (provider.id === 'ollama') {
+      // List installed models
+      try {
+        const response = await fetch(`${baseUrl}/api/tags`);
+        const data: any = await response.json();
+        const installedModels = data.models || [];
+        
+        if (installedModels.length > 0) {
+          console.log(chalk.green(`✓ Found ${installedModels.length} model(s) installed`));
+          const { modelChoice } = await prompts({
+            type: 'select',
+            name: 'modelChoice',
+            message: 'Choose a model:',
+            choices: [
+              ...installedModels.map((m: any) => ({ title: `${m.name} (installed)`, value: m.name })),
+              { title: 'Download a recommended model...', value: 'download' },
+            ],
+          }, { onCancel });
+          if (cancelled) return;
+          
+          if (modelChoice === 'download') {
+            const { downloadModel } = await prompts({
+              type: 'select',
+              name: 'downloadModel',
+              message: 'Which model to download?',
+              choices: OLLAMA_MODELS,
+            }, { onCancel });
+            if (cancelled) return;
+            
+            const spinner = ora(`Downloading ${downloadModel}...`).start();
+            try {
+              execSync(`ollama pull ${downloadModel}`, { stdio: 'ignore' });
+              spinner.succeed('Model downloaded!');
+              model = downloadModel;
+            } catch {
+              spinner.fail('Download failed');
+              model = downloadModel;
+            }
+          } else {
+            model = modelChoice;
+          }
+        } else {
+          console.log(chalk.yellow('No models installed yet.'));
+          const { downloadModel } = await prompts({
+            type: 'select',
+            name: 'downloadModel',
+            message: 'Download a model:',
+            choices: OLLAMA_MODELS,
+          }, { onCancel });
+          if (cancelled) return;
+          
+          const spinner = ora(`Downloading ${downloadModel}...`).start();
+          try {
+            execSync(`ollama pull ${downloadModel}`, { stdio: 'ignore' });
+            spinner.succeed('Model downloaded!');
+          } catch {
+            spinner.fail('Download failed');
+          }
+          model = downloadModel;
+        }
+      } catch {
+        const { downloadModel } = await prompts({
+          type: 'select',
+          name: 'downloadModel',
+          message: 'Choose a model:',
+          choices: OLLAMA_MODELS,
+        }, { onCancel });
+        if (cancelled) return;
+        model = downloadModel;
+      }
+    } else if (provider.id === 'groq') {
       console.log(chalk.dim('Recommended free models:'));
       const { modelChoice } = await prompts({
         type: 'select',
         name: 'modelChoice',
         message: 'Choose a model:',
         choices: [
-          ...OPENROUTER_MODELS.map((m) => ({ title: `${m.name} — ${m.description}`, value: m.id })),
+          ...GROQ_MODELS,
           { title: 'Custom (type your own)', value: 'custom' },
         ],
         initial: 0,
@@ -624,31 +824,25 @@ export function createSetupCommand(): Command {
       } else {
         model = modelChoice;
       }
-    } else if (provider.id === 'ollama') {
-      try {
-        const response = await fetch(`${baseUrl}/api/tags`);
-        const data: any = await response.json();
-        const models = data.models || [];
-        if (models.length > 0) {
-          const { modelChoice } = await prompts({
-            type: 'select',
-            name: 'modelChoice',
-            message: 'Choose a model:',
-            choices: models.map((m: any) => ({ title: m.name, value: m.name })),
-          }, { onCancel });
-          if (cancelled) return;
-          model = modelChoice;
-        } else {
-          console.log(chalk.yellow('No models found. Make sure you have pulled a model:'));
-          console.log(chalk.dim('  ollama pull llama2'));
-          const { customModel } = await prompts({ type: 'text', name: 'customModel', message: 'Model name:' }, { onCancel });
-          if (cancelled) return;
-          model = customModel;
-        }
-      } catch {
+    } else if (provider.id === 'openrouter') {
+      console.log(chalk.dim('Recommended free models:'));
+      const { modelChoice } = await prompts({
+        type: 'select',
+        name: 'modelChoice',
+        message: 'Choose a model:',
+        choices: [
+          ...OPENROUTER_MODELS,
+          { title: 'Custom (type your own)', value: 'custom' },
+        ],
+        initial: 0,
+      }, { onCancel });
+      if (cancelled) return;
+      if (modelChoice === 'custom') {
         const { customModel } = await prompts({ type: 'text', name: 'customModel', message: 'Model name:' }, { onCancel });
         if (cancelled) return;
         model = customModel;
+      } else {
+        model = modelChoice;
       }
     } else {
       const { customModel } = await prompts({ type: 'text', name: 'customModel', message: 'Model name:' }, { onCancel });
@@ -656,7 +850,7 @@ export function createSetupCommand(): Command {
       model = customModel;
     }
 
-    // Save configuration BEFORE creating agent
+    // Save configuration
     const spinnerSave = ora('Saving configuration...').start();
     try {
       saveEnv({

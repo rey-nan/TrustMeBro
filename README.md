@@ -1,31 +1,66 @@
 # TrustMeBro
-
 ### Not Skynet. Probably.
 
-Autonomous agent orchestration. Run AI agents locally or on a server. Free, open source, model-agnostic.
+Run AI agents on your computer. Free. No coding required.
 
 ---
 
-## Quick Start
+## What you need before starting
 
-### 1. Clone and setup
+- [Node.js](https://nodejs.org) — download and install (choose "LTS" version)
+- [Git](https://git-scm.com/downloads) — download and install
+- That's it!
+
+---
+
+## Install in 3 steps
+
+### Step 1 — Download TrustMeBro
+Open your terminal (PowerShell on Windows, Terminal on Mac/Linux) and run:
 ```bash
 git clone https://github.com/rey-nan/TrustMeBro.git
 cd TrustMeBro
+```
+
+> **Don't know how to open a terminal?**
+> - Windows: Press `Win + X` → click "Windows PowerShell" or "Terminal"
+> - Mac: Press `Cmd + Space` → type "Terminal" → press Enter
+> - Linux: Press `Ctrl + Alt + T`
+
+### Step 2 — Run setup
+```bash
 node setup.js
 ```
-The wizard guides you through everything — LLM provider, first agent, Telegram (optional).
 
-### 2. Start the system
+The setup wizard will guide you through everything.
+
+### Step 3 — Start using it
 ```bash
 node start.js
 ```
-Opens API (port 3000) + Dashboard (port 5173).
 
-### 3. Chat with your agents
-```bash
-node start.js meta
-```
+That's it! Open http://localhost:5173 in your browser.
+
+---
+
+## AI Models — Which one to choose?
+
+TrustMeBro works with several AI providers. Here's what we recommend:
+
+### 🥇 Ollama (Best for beginners)
+- **Free forever** — runs on your computer
+- **No account needed** — no sign up, no API key
+- **Private** — your data never leaves your machine
+- The setup wizard installs it automatically!
+
+### 🥈 Groq (Best free cloud option)
+- Free tier — no credit card required
+- Fast responses
+- Get a free key at: https://console.groq.com
+
+### 🥉 OpenRouter (Most model choices)
+- Access to many free models
+- Get a free key at: https://openrouter.ai/keys
 
 ---
 
@@ -38,102 +73,30 @@ node start.js meta
 | `node start.js meta` | Chat with Meta-Agent |
 | `node start.js status` | Show system status |
 | `node start.js agent list` | List all agents |
-| `node start.js task run` | Run a task |
 | `node start.js help` | Show all commands |
 
-### Optional: Install `tmb` globally
-After setup, install the `tmb` shortcut:
-```bash
-npm link packages/cli
-```
-Then use `tmb` instead of `node start.js`:
-```bash
-tmb status
-tmb meta
-tmb setup
-```
+---
 
-> **Note:** On Windows, if `tmb` is not recognized after `npm link`,
-> use `node start.js` instead — it always works.
+## Frequently Asked Questions
+
+**Q: Do I need to know programming?**
+A: No! Just follow the setup wizard step by step.
+
+**Q: Is it really free?**
+A: Yes! With Ollama everything runs on your machine at zero cost.
+
+**Q: What is an "agent"?**
+A: An AI assistant you configure for specific tasks — like research, writing, coding.
+
+**Q: Will it slow down my computer?**
+A: Ollama needs at least 8GB RAM. A small model (3B) uses about 2GB.
 
 ---
 
-## Telegram Integration (optional)
-
-Chat with your agents from anywhere via Telegram.
-
-### Getting your Chat ID
-
-> ⚠ **Important:** The number at the start of your bot token is the **BOT ID**, not yours.
-> Example: `123456789:ABC...` — `123456789` is the bot, not you.
-
-**Easiest way — use @userinfobot:**
-1. Open Telegram
-2. Search for `@userinfobot`
-3. Send any message
-4. It replies instantly with your personal ID (the number next to "Id:")
-
-**Alternative — via browser:**
-1. Send a message to your bot
-2. Open: `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates`
-3. Find `"chat":{"id":` — that number is your Chat ID
-
----
-
-## Providers
-
-- **openrouter** — OpenRouter.ai (free models available)
-- **ollama** — Local models via Ollama (zero cost)
-- **groq** — Groq API (free tier)
-- **openai-compatible** — Any OpenAI-compatible API
-
----
-
-## Dashboard
-
-http://localhost:5173
-
-## API
-
-http://localhost:3000
-
----
-
-## Manual Setup (alternative)
-```bash
-npm install
-cp .env.example .env
-# Edit .env with your LLM provider settings
-npm run build:core
-node start.js
-```
-
----
-
-## Platform Support
-
-| Feature | Windows | Linux | Mac |
-|---|---|---|---|
-| API + Dashboard | ✅ | ✅ | ✅ |
-| CLI (`tmb`) | ✅ | ✅ | ✅ |
-| Setup wizard | ✅ | ✅ | ✅ |
-| Docker Sandbox | ✅* | ✅ | ✅ |
-| Heartbeat/Cron | ✅ | ✅ | ✅ |
-
-*Docker Desktop required on Windows
-
-### Windows Notes
-- Use PowerShell or Windows Terminal
-- `tmb` requires `npm link packages/cli` or use `node start.js` instead
-- Docker requires Docker Desktop
-
-### Linux Notes
-- Works out of the box
-- Docker: `sudo apt install docker.io` (Ubuntu/Debian)
-- Make scripts executable: `chmod +x setup.js start.js`
+## Need help?
+Open an issue on GitHub or ask in the community.
 
 ---
 
 ## License
-
 MIT
