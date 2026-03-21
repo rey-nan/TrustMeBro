@@ -60,8 +60,8 @@ async function startApiInBackground(rootDir: string): Promise<boolean> {
   // 2. Always build first (ensures fresh code)
   const buildSpinner = ora('Building API (first time may take a minute)...').start();
   try {
-    execSync(`${npmCmd} run build:core`, { cwd: rootDir, stdio: 'ignore' });
-    execSync(`${npmCmd} run build:api`, { cwd: rootDir, stdio: 'ignore' });
+    execSync(`${npmCmd} run build:core`, { cwd: rootDir, stdio: 'inherit' });
+    execSync(`${npmCmd} run build:api`, { cwd: rootDir, stdio: 'inherit' });
     buildSpinner.succeed('Build complete!');
   } catch {
     buildSpinner.fail('Build failed');
