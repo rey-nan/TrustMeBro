@@ -634,6 +634,8 @@ export function createSetupCommand(): Command {
     console.log(chalk.dim('This will take about 2 minutes.'));
     console.log();
 
+    const rootDir = process.cwd();
+
     let cancelled = false;
     const onCancel = () => {
       cancelled = true;
@@ -1047,13 +1049,29 @@ export function createSetupCommand(): Command {
 
     // Execute based on mode
     if (interactionMode === 'cli') {
-      if (agentId) {
-        await startAgentChat(agentId, agentName);
+      // Check for any agents (created now or previously)
+      const agentsFile = path.resolve(rootDir, 'data', 'agents.json');
+      let existingAgents: any[] = [];
+      try {
+        if (fs.existsSync(agentsFile)) {
+          existingAgents = JSON.parse(fs.readFileSync(agentsFile, 'utf-8')) || [];
+        }
+      } catch {}
+
+      if (existingAgents.length > 0 || agentId) {
+        console.log();
+        console.log(chalk.green('✓ Starting chat with your agents...'));
+        console.log(chalk.dim('Type your message. Type "exit" to quit.'));
+        console.log();
       } else {
-        console.log(chalk.yellow('No agent created. Start the API and create one first.'));
-        console.log(chalk.dim('Run: ') + chalk.cyan('npm run dev:api'));
-        console.log(chalk.dim('Then: ') + chalk.cyan('tmb setup'));
+        console.log();
+        console.log(chalk.yellow('No agents yet. You can create one by saying:'));
+        console.log(chalk.cyan('"create an agent called [name] that [description]"'));
+        console.log();
       }
+
+      // Start Meta-Agent chat
+      await startAgentChat(agentId || 'meta', agentName || 'Meta-Agent');
     } else if (interactionMode === 'dashboard') {
       console.log();
       console.log(chalk.dim('Starting dashboard...'));
