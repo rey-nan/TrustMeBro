@@ -7,12 +7,17 @@ interface Message {
   actions?: { type: string; message?: string; method?: string; endpoint?: string }[];
 }
 
+interface SystemStatus {
+  activeProvider: string;
+  agentsRegistered: number;
+}
+
 const SUGGESTIONS = [
+  'What is the dashboard URL?',
   'List all my agents',
-  'Create a new research agent',
   'Show system status',
-  'Run a task with my agent',
-  'Show my workflows',
+  'Is Telegram configured?',
+  'Create a new agent',
 ];
 
 export function MetaAgent() {
@@ -20,11 +25,24 @@ export function MetaAgent() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | undefined>();
+  const [status, setStatus] = useState<SystemStatus | null>(null);
+  const [showConfig, setShowConfig] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    loadStatus();
+  }, []);
+
+  const loadStatus = async () => {
+    const res = await api.get<SystemStatus>('/api/status');
+    if (res.success && res.data) {
+      setStatus(res.data);
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
@@ -84,12 +102,73 @@ export function MetaAgent() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
-      <div style={{ marginBottom: 16 }}>
-        <h1 style={{ color: 'var(--green)', marginBottom: 4 }}>🧠 Meta-Agent</h1>
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-          Tell me what you need in plain language. I'll do it for you.
-        </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div>
+          <h1 style={{ color: 'var(--green)', marginBottom: 4 }}>🧠 Meta-Agent</h1>
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>
+            Tell me what you need in plain language.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {status && (
+            <div style={{
+              padding: '4px 12px',
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 4,
+              fontSize: 11,
+              color: 'var(--text-secondary)',
+            }}>
+              Model: <span style={{ color: 'var(--green)' }}>{status.activeProvider}</span>
+              {' • '}
+              Agents: <span style={{ color: 'var(--cyan)' }}>{status.agentsRegistered}</span>
+            </div>
+          )}
+          <button
+            onClick={() => setShowConfig(!showConfig)}
+            style={{
+              padding: '6px 12px',
+              background: showConfig ? 'var(--green)' : 'transparent',
+              color: showConfig ? '#000' : 'var(--text-secondary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 4,
+              cursor: 'pointer',
+              fontSize: 12,
+            }}
+          >
+            ⚙️ Config
+          </button>
+        </div>
       </div>
+
+      {showConfig && (
+        <div style={{
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border-color)',
+          borderRadius: 4,
+          padding: 16,
+          marginBottom: 16,
+        }}>
+          <h3 style={{ marginBottom: 12 }}>Meta-Agent Configuration</h3>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12 }}>
+            To change the LLM model, edit the <code style={{ color: 'var(--green)' }}>.env</code> file and restart the API:
+          </div>
+          <div style={{
+            background: 'var(--bg-primary)',
+            padding: 12,
+            borderRadius: 4,
+            fontFamily: 'monospace',
+            fontSize: 12,
+          }}>
+            <div>LLM_PROVIDER={status?.activeProvider || 'openrouter'}</div>
+            <div>LLM_DEFAULT_MODEL=your-model-name</div>
+            <div>LLM_API_KEY=your-api-key</div>
+          </div>
+          <div style={{ marginTop: 12, fontSize: 11, color: 'var(--text-secondary)' }}>
+            Available providers: openrouter, groq, ollama, openai-compatible
+          </div>
+        </div>
+      )}
 
       {/* Messages */}
       <div
