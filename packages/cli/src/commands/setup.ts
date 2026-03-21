@@ -4,15 +4,8 @@ import ora from 'ora';
 import chalk from 'chalk';
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
-
-interface SetupConfig {
-  provider: string;
-  apiKey: string;
-  baseUrl: string;
-  model: string;
-  interactionMode: string;
-}
+import readline from 'readline';
+import { execSync, spawn } from 'child_process';
 
 const PROVIDERS = [
   { id: 'openrouter', name: 'OpenRouter', description: 'Free models available', keyUrl: 'https://openrouter.ai/keys' },
@@ -28,24 +21,19 @@ const OPENROUTER_MODELS = [
 ];
 
 function getEnvPath(): string {
-  const rootDir = process.cwd();
-  return path.join(rootDir, '.env');
+  return path.join(process.cwd(), '.env');
 }
 
 function loadEnv(): Record<string, string> {
   const envPath = getEnvPath();
   const env: Record<string, string> = {};
-  
   if (fs.existsSync(envPath)) {
     const content = fs.readFileSync(envPath, 'utf-8');
     for (const line of content.split('\n')) {
       const match = line.match(/^([^#=]+)=(.*)$/);
-      if (match) {
-        env[match[1].trim()] = match[2].trim();
-      }
+      if (match) env[match[1].trim()] = match[2].trim();
     }
   }
-  
   return env;
 }
 
@@ -53,11 +41,7 @@ function saveEnv(config: Record<string, string>): void {
   const envPath = getEnvPath();
   const existingEnv = loadEnv();
   const merged = { ...existingEnv, ...config };
-  
-  const content = Object.entries(merged)
-    .map(([key, value]) => `${key}=${value}`)
-    .join('\n');
-  
+  const content = Object.entries(merged).map(([key, value]) => `${key}=${value}`).join('\n');
   fs.writeFileSync(envPath, content + '\n');
 }
 
@@ -65,7 +49,6 @@ async function validateApiKey(provider: string, apiKey: string, baseUrl: string)
   try {
     let url: string;
     let headers: Record<string, string> = {};
-
     switch (provider) {
       case 'openrouter':
         url = 'https://openrouter.ai/api/v1/models';
@@ -85,7 +68,6 @@ async function validateApiKey(provider: string, apiKey: string, baseUrl: string)
       default:
         return false;
     }
-
     const response = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
     return response.ok;
   } catch {
@@ -93,7 +75,19 @@ async function validateApiKey(provider: string, apiKey: string, baseUrl: string)
   }
 }
 
-async function createFirstAgent(): Promise<void> {
+async function validateTelegram(botToken: string): Promise<{ valid: boolean; chatId?: string }> {
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/getMe`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    const data: any = await response.json();
+    return { valid: data.ok === true };
+  } catch {
+    return { valid: false };
+  }
+}
+
+async function createFirstAgent(): Promise<{ agentId: string; agentName: string } | null> {
   console.log();
   console.log(chalk.bold("Let's create your first agent!"));
   console.log(chalk.dim('─'.repeat(50)));
@@ -122,7 +116,7 @@ async function createFirstAgent(): Promise<void> {
 
   if (!agentInfo.name) {
     console.log(chalk.yellow('Skipped agent creation.'));
-    return;
+    return null;
   }
 
   let soul = null;
@@ -132,17 +126,13 @@ async function createFirstAgent(): Promise<void> {
       const response = await fetch('http://localhost:3000/api/soul/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: agentInfo.name,
-          role: agentInfo.role,
-        }),
+        body: JSON.stringify({ name: agentInfo.name, role: agentInfo.role }),
         signal: AbortSignal.timeout(30000),
       });
       const data: any = await response.json();
       if (data.success) {
         soul = data.data.soul;
         spinner.succeed('SOUL generated!');
-        
         console.log();
         console.log(chalk.cyan('Personality: ') + (soul.personality || 'N/A').substring(0, 100));
         console.log(chalk.cyan('Expertise:   ') + (soul.expertise?.join(', ') || 'N/A'));
@@ -154,6 +144,7 @@ async function createFirstAgent(): Promise<void> {
     } catch {
       spinner.fail('Failed to connect to API');
       console.log(chalk.yellow('Make sure the API is running with `npm run dev:api`'));
+      return null;
     }
   }
 
@@ -170,11 +161,7 @@ async function createFirstAgent(): Promise<void> {
 
   let model = '';
   if (useModel === 'custom') {
-    const { customModel } = await prompts({
-      type: 'text',
-      name: 'customModel',
-      message: 'Model name:',
-    });
+    const { customModel } = await prompts({ type: 'text', name: 'customModel', message: 'Model name:' });
     model = customModel;
   }
 
@@ -185,16 +172,14 @@ async function createFirstAgent(): Promise<void> {
     initial: true,
   });
 
-  // Create agent
   const spinner = ora('Creating agent...').start();
   try {
     const env = loadEnv();
-    const systemPrompt = soul ? 
-      `# You are ${soul.name || agentInfo.name}, ${soul.role || agentInfo.role}\n\n## Your Personality\n${soul.personality || '...'}\n\n## Your Expertise\n${soul.expertise?.map((e: string) => `- ${e}`).join('\n') || '- ...'}\n\n## Your Values\n${soul.values?.map((v: string) => `- ${v}`).join('\n') || '- ...'}` :
-      `You are ${agentInfo.name}, a ${agentInfo.role}.`;
+    const systemPrompt = soul
+      ? `# You are ${soul.name || agentInfo.name}, ${soul.role || agentInfo.role}\n\n## Your Personality\n${soul.personality || '...'}\n\n## Your Expertise\n${soul.expertise?.map((e: string) => `- ${e}`).join('\n') || '- ...'}\n\n## Your Values\n${soul.values?.map((v: string) => `- ${v}`).join('\n') || '- ...'}`
+      : `You are ${agentInfo.name}, a ${agentInfo.role}.`;
 
     const agentId = agentInfo.name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now().toString(36);
-
     const response = await fetch('http://localhost:3000/api/agents', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -208,71 +193,102 @@ async function createFirstAgent(): Promise<void> {
       }),
     });
     const data: any = await response.json();
-    
+
     if (data.success) {
       spinner.succeed(`Agent "${agentInfo.name}" created!`);
+      return { agentId, agentName: agentInfo.name };
     } else {
       spinner.fail(data.error || 'Failed to create agent');
+      return null;
     }
   } catch {
     spinner.fail('Failed to connect to API');
-    return;
+    return null;
   }
+}
 
-  // Test task
-  const { testTask } = await prompts({
-    type: 'confirm',
-    name: 'testTask',
-    message: 'Run a test task?',
-    initial: true,
-  });
+async function startAgentChat(agentId: string, agentName: string): Promise<void> {
+  console.log();
+  console.log(chalk.cyan('═'.repeat(50)));
+  header(`  Chat with ${agentName}`);
+  dim("  Type your message below. Type 'exit' to quit.");
+  console.log(chalk.cyan('═'.repeat(50)));
+  console.log();
 
-  if (testTask) {
-    const { taskInput } = await prompts({
-      type: 'text',
-      name: 'taskInput',
-      message: 'Task:',
-      initial: 'Say hello!',
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+
+  const ask = (prompt: string): Promise<string> => {
+    return new Promise((resolve) => {
+      rl.question(prompt, resolve);
     });
+  };
 
-    if (taskInput) {
-      const spinner = ora('Running task...').start();
-      try {
-        const agentId = agentInfo.name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now().toString(36);
-        const response = await fetch('http://localhost:3000/api/tasks', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            agentId,
-            input: taskInput,
-          }),
-        });
-        const data: any = await response.json();
-        
-        if (data.success) {
-          // Wait a bit and get result
-          await new Promise(resolve => setTimeout(resolve, 5000));
-          
-          const result = await fetch(`http://localhost:3000/api/tasks`);
-          const tasks: any = await result.json();
-          const task = tasks.data?.find((t: any) => t.id === data.data.taskId);
-          
-          if (task?.output) {
-            spinner.succeed('Task completed!');
-            console.log();
-            console.log(chalk.cyan('Output: ') + task.output.substring(0, 200));
-            console.log();
-          } else {
-            spinner.info('Task submitted (check dashboard for result)');
-          }
-        } else {
-          spinner.fail(data.error || 'Failed to run task');
-        }
-      } catch {
-        spinner.fail('Failed to connect to API');
+  const waitForTask = async (taskId: string): Promise<string> => {
+    const maxWait = 120000;
+    const interval = 2000;
+    let elapsed = 0;
+
+    while (elapsed < maxWait) {
+      const response = await fetch(`http://localhost:3000/api/tasks/${taskId}`, {
+        signal: AbortSignal.timeout(10000),
+      });
+      const task: any = await response.json();
+
+      if (task.status === 'success') return task.output || '(no output)';
+      if (task.status === 'failed') throw new Error(task.error || 'Task failed');
+
+      process.stdout.write('.');
+      await new Promise((resolve) => setTimeout(resolve, interval));
+      elapsed += interval;
+    }
+    throw new Error('Task timed out');
+  };
+
+  while (true) {
+    const input = await ask(chalk.cyan('You: '));
+
+    if (!input.trim()) continue;
+    if (input.trim().toLowerCase() === 'exit' || input.trim().toLowerCase() === 'quit') {
+      console.log(chalk.dim('Goodbye!'));
+      rl.close();
+      return;
+    }
+
+    const spinner = ora('Thinking...').start();
+
+    try {
+      const response = await fetch('http://localhost:3000/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId, input }),
+      });
+      const data: any = await response.json();
+
+      if (!data.success) {
+        spinner.fail(data.error || 'Failed to submit task');
+        continue;
       }
+
+      spinner.text = 'Processing';
+      const output = await waitForTask(data.data.taskId);
+      spinner.stop();
+
+      console.log();
+      console.log(output);
+      console.log();
+    } catch (err) {
+      spinner.stop();
+      console.log(chalk.red(`Error: ${(err as Error).message}`));
     }
   }
+}
+
+function header(msg: string): void {
+  console.log(chalk.bold(msg));
+}
+
+function dim(msg: string): void {
+  console.log(chalk.dim(msg));
 }
 
 export function createSetupCommand(): Command {
@@ -297,26 +313,24 @@ export function createSetupCommand(): Command {
       return false;
     };
 
-    // Step 1: Provider
-    console.log(chalk.bold('Step 1/4: LLM Provider'));
+    // Step 1: Provider & API Key
+    console.log(chalk.bold('Step 1/5: LLM Provider'));
     console.log(chalk.dim('─'.repeat(40)));
     const { providerChoice } = await prompts({
       type: 'select',
       name: 'providerChoice',
       message: 'Which LLM provider do you want to use?',
-      choices: PROVIDERS.map((p, i) => ({
+      choices: PROVIDERS.map((p) => ({
         title: `${p.name} — ${p.description}`,
         value: p.id,
       })),
       initial: 0,
     }, { onCancel });
-
     if (cancelled) return;
-    const provider = PROVIDERS.find(p => p.id === providerChoice)!;
+    const provider = PROVIDERS.find((p) => p.id === providerChoice)!;
 
-    // Step 2: API Key
     console.log();
-    console.log(chalk.bold('Step 2/4: API Key'));
+    console.log(chalk.bold('Step 2/5: API Key & Model'));
     console.log(chalk.dim('─'.repeat(40)));
 
     let apiKey = '';
@@ -336,7 +350,6 @@ export function createSetupCommand(): Command {
       if (provider.keyUrl) {
         console.log(chalk.dim('Get your free key at: ') + chalk.cyan(provider.keyUrl));
       }
-
       if (provider.id === 'openai-compatible') {
         const { url } = await prompts({
           type: 'text',
@@ -347,7 +360,6 @@ export function createSetupCommand(): Command {
         if (cancelled) return;
         baseUrl = url;
       }
-
       const { key } = await prompts({
         type: 'password',
         name: 'key',
@@ -359,33 +371,27 @@ export function createSetupCommand(): Command {
     }
 
     // Validate key
-    const spinner = ora('Validating API key...').start();
+    const spinnerKey = ora('Validating API key...').start();
     const isValid = await validateApiKey(provider.id, apiKey, baseUrl);
     if (isValid) {
-      spinner.succeed('API key validated!');
+      spinnerKey.succeed('API key validated!');
     } else {
-      spinner.fail('API key validation failed');
-      const { retry } = await prompts({
-        type: 'confirm',
-        name: 'retry',
-        message: 'Try again?',
-        initial: true,
-      }, { onCancel });
+      spinnerKey.fail('API key validation failed');
+      const { retry } = await prompts({ type: 'confirm', name: 'retry', message: 'Try again?', initial: true }, { onCancel });
       if (!retry || cancelled) return;
-      // Retry validation
-      const spinner2 = ora('Validating API key...').start();
+      const spinnerKey2 = ora('Validating API key...').start();
       const isValid2 = await validateApiKey(provider.id, apiKey, baseUrl);
       if (isValid2) {
-        spinner2.succeed('API key validated!');
+        spinnerKey2.succeed('API key validated!');
       } else {
-        spinner2.fail('API key still invalid. Please check and run setup again.');
+        spinnerKey2.fail('API key still invalid. Please check and run setup again.');
         return;
       }
     }
 
     // Step 3: Model
     console.log();
-    console.log(chalk.bold('Step 3/4: Default Model'));
+    console.log(chalk.bold('Step 3/5: Default Model'));
     console.log(chalk.dim('─'.repeat(40)));
 
     let model = '';
@@ -397,22 +403,14 @@ export function createSetupCommand(): Command {
         name: 'modelChoice',
         message: 'Choose a model:',
         choices: [
-          ...OPENROUTER_MODELS.map(m => ({
-            title: `${m.name} — ${m.description}`,
-            value: m.id,
-          })),
+          ...OPENROUTER_MODELS.map((m) => ({ title: `${m.name} — ${m.description}`, value: m.id })),
           { title: 'Custom (type your own)', value: 'custom' },
         ],
         initial: 0,
       }, { onCancel });
       if (cancelled) return;
-
       if (modelChoice === 'custom') {
-        const { customModel } = await prompts({
-          type: 'text',
-          name: 'customModel',
-          message: 'Model name:',
-        }, { onCancel });
+        const { customModel } = await prompts({ type: 'text', name: 'customModel', message: 'Model name:' }, { onCancel });
         if (cancelled) return;
         model = customModel;
       } else {
@@ -423,69 +421,34 @@ export function createSetupCommand(): Command {
         const response = await fetch(`${baseUrl}/api/tags`);
         const data: any = await response.json();
         const models = data.models || [];
-        
         if (models.length > 0) {
           const { modelChoice } = await prompts({
             type: 'select',
             name: 'modelChoice',
             message: 'Choose a model:',
-            choices: models.map((m: any) => ({
-              title: m.name,
-              value: m.name,
-            })),
+            choices: models.map((m: any) => ({ title: m.name, value: m.name })),
           }, { onCancel });
           if (cancelled) return;
           model = modelChoice;
         } else {
           console.log(chalk.yellow('No models found. Make sure you have pulled a model:'));
           console.log(chalk.dim('  ollama pull llama2'));
-          const { customModel } = await prompts({
-            type: 'text',
-            name: 'customModel',
-            message: 'Model name:',
-          }, { onCancel });
+          const { customModel } = await prompts({ type: 'text', name: 'customModel', message: 'Model name:' }, { onCancel });
           if (cancelled) return;
           model = customModel;
         }
       } catch {
-        const { customModel } = await prompts({
-          type: 'text',
-          name: 'customModel',
-          message: 'Model name:',
-        }, { onCancel });
+        const { customModel } = await prompts({ type: 'text', name: 'customModel', message: 'Model name:' }, { onCancel });
         if (cancelled) return;
         model = customModel;
       }
     } else {
-      const { customModel } = await prompts({
-        type: 'text',
-        name: 'customModel',
-        message: 'Model name:',
-      }, { onCancel });
+      const { customModel } = await prompts({ type: 'text', name: 'customModel', message: 'Model name:' }, { onCancel });
       if (cancelled) return;
       model = customModel;
     }
 
-    // Step 4: Interaction Mode
-    console.log();
-    console.log(chalk.bold('Step 4/4: How do you want to use TrustMeBro?'));
-    console.log(chalk.dim('─'.repeat(40)));
-
-    const { interactionMode } = await prompts({
-      type: 'select',
-      name: 'interactionMode',
-      message: 'How do you want to interact?',
-      choices: [
-        { title: 'Dashboard (web interface at http://localhost:5173)', value: 'dashboard' },
-        { title: 'CLI (terminal commands with `tmb`)', value: 'cli' },
-        { title: 'Both dashboard and CLI', value: 'both' },
-        { title: "I'll decide later", value: 'later' },
-      ],
-      initial: 0,
-    }, { onCancel });
-    if (cancelled) return;
-
-    // Save configuration
+    // Save configuration BEFORE creating agent
     const spinnerSave = ora('Saving configuration...').start();
     try {
       saveEnv({
@@ -502,12 +465,87 @@ export function createSetupCommand(): Command {
         SANDBOX_TYPE: 'docker',
       });
       spinnerSave.succeed('Configuration saved!');
-    } catch (err) {
+    } catch {
       spinnerSave.fail('Failed to save configuration');
       return;
     }
 
-    // Summary
+    // Step 4: Create first agent
+    console.log();
+    console.log(chalk.bold('Step 4/5: Create Your First Agent'));
+    console.log(chalk.dim('─'.repeat(40)));
+
+    const { createAgent } = await prompts({
+      type: 'confirm',
+      name: 'createAgent',
+      message: 'Create your first agent now?',
+      initial: true,
+    }, { onCancel });
+    if (cancelled) return;
+
+    let agentId = '';
+    let agentName = '';
+
+    if (createAgent) {
+      console.log(chalk.yellow('⚠ Start the API first: ') + chalk.cyan('npm run dev:api'));
+      console.log(chalk.dim('Then run this setup again to create your agent.'));
+      console.log();
+      const result = await createFirstAgent();
+      if (result) {
+        agentId = result.agentId;
+        agentName = result.agentName;
+      }
+    }
+
+    // Step 5: Telegram (optional)
+    console.log();
+    console.log(chalk.bold('Step 5/5: Telegram Integration (Optional)'));
+    console.log(chalk.dim('─'.repeat(40)));
+
+    const { configureTelegram } = await prompts({
+      type: 'confirm',
+      name: 'configureTelegram',
+      message: 'Connect Telegram for remote access?',
+      initial: false,
+    }, { onCancel });
+    if (cancelled) return;
+
+    if (configureTelegram) {
+      console.log();
+      console.log(chalk.dim('1. Open Telegram and search for @BotFather'));
+      console.log(chalk.dim('2. Send /newbot and follow the instructions'));
+      console.log(chalk.dim('3. Copy the bot token BotFather gives you'));
+      console.log();
+
+      const { botToken } = await prompts({
+        type: 'password',
+        name: 'botToken',
+        message: 'Enter your Telegram bot token:',
+      }, { onCancel });
+      if (cancelled) return;
+
+      const { chatId } = await prompts({
+        type: 'text',
+        name: 'chatId',
+        message: 'Enter your Telegram chat ID:',
+      }, { onCancel });
+      if (cancelled) return;
+
+      const spinnerTelegram = ora('Testing Telegram connection...').start();
+      const telegramValid = await validateTelegram(botToken);
+      if (telegramValid.valid) {
+        spinnerTelegram.succeed('Telegram connected!');
+        saveEnv({
+          TELEGRAM_BOT_TOKEN: botToken,
+          TELEGRAM_CHAT_ID: chatId,
+        });
+      } else {
+        spinnerTelegram.fail('Telegram connection failed');
+        console.log(chalk.yellow('You can configure it later in .env'));
+      }
+    }
+
+    // Summary & Interface Selection
     console.log();
     console.log(chalk.cyan('═'.repeat(50)));
     console.log(chalk.bold('  Setup Complete!'));
@@ -515,41 +553,75 @@ export function createSetupCommand(): Command {
     console.log();
     console.log(chalk.cyan('Provider: ') + provider.name);
     console.log(chalk.cyan('Model:    ') + model);
-    console.log(chalk.cyan('Mode:     ') + interactionMode);
+    if (agentName) {
+      console.log(chalk.cyan('Agent:    ') + agentName);
+    }
     console.log();
 
-    // Start services based on mode
-    if (interactionMode === 'dashboard' || interactionMode === 'both') {
-      console.log(chalk.dim('Starting dashboard... run: ') + chalk.cyan('npm run dev'));
+    console.log(chalk.bold('How would you like to interact with TrustMeBro?'));
+    console.log(chalk.dim('─'.repeat(40)));
+
+    const { interactionMode } = await prompts({
+      type: 'select',
+      name: 'interactionMode',
+      message: 'Choose your interface:',
+      choices: [
+        { title: 'CLI — chat in this terminal right now', value: 'cli' },
+        { title: 'Dashboard — web interface at http://localhost:5173', value: 'dashboard' },
+        { title: 'Both — CLI + Dashboard together', value: 'both' },
+        { title: "Later — I'll decide later", value: 'later' },
+      ],
+      initial: 0,
+    }, { onCancel });
+    if (cancelled) return;
+
+    // Execute based on mode
+    if (interactionMode === 'cli') {
+      if (agentId) {
+        await startAgentChat(agentId, agentName);
+      } else {
+        console.log(chalk.yellow('No agent created. Start the API and create one first.'));
+        console.log(chalk.dim('Run: ') + chalk.cyan('npm run dev:api'));
+        console.log(chalk.dim('Then: ') + chalk.cyan('tmb setup'));
+      }
+    } else if (interactionMode === 'dashboard') {
+      console.log();
+      console.log(chalk.dim('Starting dashboard...'));
+      console.log(chalk.dim('API:       ') + chalk.cyan('http://localhost:3000'));
+      console.log(chalk.dim('Dashboard: ') + chalk.cyan('http://localhost:5173'));
+      console.log();
+      console.log(chalk.dim('Run: ') + chalk.cyan('npm run dev'));
+      console.log();
+
+      // Try to open browser
+      try {
+        if (process.platform === 'win32') {
+          execSync('start http://localhost:5173', { stdio: 'ignore' });
+        } else if (process.platform === 'darwin') {
+          execSync('open http://localhost:5173', { stdio: 'ignore' });
+        } else {
+          execSync('xdg-open http://localhost:5173', { stdio: 'ignore' });
+        }
+        console.log(chalk.dim('Opening browser... ✓'));
+      } catch {
+        console.log(chalk.dim('Open browser manually: ') + chalk.cyan('http://localhost:5173'));
+      }
+    } else if (interactionMode === 'both') {
+      console.log();
+      console.log(chalk.dim('Starting everything...'));
+      console.log(chalk.dim('Run: ') + chalk.cyan('npm run dev'));
       console.log(chalk.dim('Then open: ') + chalk.cyan('http://localhost:5173'));
       console.log();
-    }
-
-    if (interactionMode === 'cli' || interactionMode === 'both') {
-      console.log(chalk.dim('CLI commands:'));
-      console.log(chalk.cyan('  tmb status') + ' — Check system status');
-      console.log(chalk.cyan('  tmb agent list') + ' — List agents');
-      console.log(chalk.cyan('  tmb task run') + ' — Run a task');
+      console.log(chalk.dim('You can also chat via CLI: ') + chalk.cyan('tmb meta'));
       console.log();
-    }
-
-    if (interactionMode === 'later') {
-      console.log(chalk.dim('Next steps:'));
-      console.log(chalk.cyan('  npm run dev') + ' — Start API + Dashboard');
-      console.log(chalk.cyan('  tmb status') + ' — Check CLI status');
+    } else {
       console.log();
-    }
-
-    // Create first agent?
-    const { createAgent } = await prompts({
-      type: 'confirm',
-      name: 'createAgent',
-      message: 'Create your first agent now?',
-      initial: true,
-    }, { onCancel });
-
-    if (createAgent && !cancelled) {
-      await createFirstAgent();
+      console.log(chalk.dim('No problem! When you are ready:'));
+      console.log();
+      console.log(chalk.dim('Start everything: ') + chalk.cyan('npm run dev'));
+      console.log(chalk.dim('CLI chat:         ') + chalk.cyan('tmb meta'));
+      console.log(chalk.dim('Dashboard only:   ') + chalk.cyan('npm run dev:dashboard'));
+      console.log();
     }
 
     console.log();
