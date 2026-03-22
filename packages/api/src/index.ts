@@ -183,13 +183,17 @@ async function main() {
   // Initialize Telegram Bot
   const { TelegramBot } = await import('@trustmebro/core');
   const telegramBot = new TelegramBot();
+  
   if (telegramBot.isConfigured()) {
+    logger.info('Telegram bot is configured, setting up handler...');
     telegramBot.setOnMessage(async (chatId: string, text: string) => {
+      logger.info({ chatId, text }, 'Telegram message received, calling metaAgent...');
       const result = await metaAgent.chat(text);
+      logger.info('MetaAgent response ready');
       return result.message;
     });
     telegramBot.startPolling();
-    logger.info('Telegram bot started');
+    logger.info('Telegram bot polling started');
   } else {
     logger.info('Telegram not configured, skipping bot');
   }

@@ -65,23 +65,45 @@ export class TelegramBot {
     if (!this.config || this.polling) return;
 
     this.polling = true;
-    logger.info('Starting Telegram polling...');
+    logger.info({ chatId: this.config.chatId }, 'Starting Telegram polling...');
 
     while (this.polling) {
       try {
-        const response = await fetch(
-          `https://api.telegram.org/bot${this.config.botToken}/getUpdates?offset=${this.lastUpdateId + 1}&timeout=30`,
-          { signal: AbortSignal.timeout(35000) }
-        );
+        const url = `https://api.telegram.org/bot${this.config.botToken}/getUpdates?offset=${this.lastUpdateId + 1}&timeout=30`;
+        logger.info('Polling for updates...');
+        
+        const response = await fetch(url, { signal: AbortSignal.timeout(35000) });
         const data: any = await response.json();
 
         if (data.ok && data.result) {
+          logger.info({ count: data.result.length }, 'Received updates');
+          
           for (const update of data.result as TelegramUpdate[]) {
             this.lastUpdateId = update.update_id;
 
             if (update.message?.text) {
-              await this.handleMessage(update.message.chat.id.toString(), update.message.text);
+              const msgChatId = update.message.chat.id.toString();
+              logger.info({ chatId: msgChatId, text: update.message.text }, 'Processing message');
+              
+              // Only process messages from configured chat
+              if (msgChatId === this.config.chatId) {
+                await this.handleMessage(msgChatId, update.message.text);
+              } else {
+                logger.info({ chatId: msgChatId }, 'Ignoring message from unknown chat');
+              }
             }
+          }
+        } else {
+          logger.warn({ data }, 'Unexpected response from Telegram');
+        }
+      } catch (err: any) {
+        if (!err.message?.includes('timeout')) {
+          logger.error({ err: err.message }, 'Telegram polling error');
+          await new Promise(r => setTimeout(r, 5000));
+        }
+      }
+    }
+  }
           }
         }
       } catch (err: any) {
@@ -94,16 +116,20 @@ export class TelegramBot {
   }
 
   private async handleMessage(chatId: string, text: string): Promise<void> {
-    logger.info({ chatId, text }, 'Received Telegram message');
+    logger.info({ chatId, text }, 'Handling Telegram message');
 
     if (!this.onMessage) {
+      logger.warn('No message handler configured!');
       await this.sendMessage(chatId, 'Sorry, no message handler is configured.');
       return;
     }
 
     try {
+      logger.info('Calling onMessage handler...');
       const response = await this.onMessage(chatId, text);
+      logger.info({ responseLength: response.length }, 'Got response from handler');
       await this.sendMessage(chatId, response);
+      logger.info('Response sent to Telegram');
     } catch (err) {
       logger.error({ err }, 'Error handling message');
       await this.sendMessage(chatId, 'Sorry, an error occurred processing your message.');
