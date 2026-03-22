@@ -5,6 +5,11 @@
 
 set -e
 
+# Fix stdin for curl | bash
+if [ ! -t 0 ]; then
+  exec < /dev/tty
+fi
+
 # Cores
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -148,4 +153,5 @@ echo ""
 echo "Starting setup wizard..."
 echo ""
 
-node setup.js
+# Run setup directly via compiled CLI (no tmb needed)
+node packages/cli/dist/index.js setup

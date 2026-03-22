@@ -2,10 +2,10 @@
 
 /**
  * TrustMeBro Setup Script
- * 
+ *
  * Run this after cloning:
  *   node setup.js
- * 
+ *
  * Works on Windows, Linux, and Mac.
  */
 
@@ -16,91 +16,64 @@ const os = require('os');
 
 const isWindows = os.platform() === 'win32';
 const npmCmd = isWindows ? 'npm.cmd' : 'npm';
-
-console.log('');
-console.log('TrustMeBro Setup');
-console.log('Not Skynet. Probably.');
-console.log('');
-console.log('Building...');
-console.log('');
-
 const rootDir = __dirname;
 
-function run(cmd, options = {}) {
-  try {
-    execSync(cmd, {
-      cwd: rootDir,
-      stdio: 'inherit',
-      shell: isWindows || true,
-      ...options,
-    });
-    return true;
-  } catch (err) {
-    console.error(`Failed: ${cmd}`);
-    console.error(err.message);
-    return false;
-  }
+// Colors
+const green = (s) => `\x1b[32m${s}\x1b[0m`;
+const cyan = (s) => `\x1b[36m${s}\x1b[0m`;
+const bold = (s) => `\x1b[1m${s}\x1b[0m`;
+
+console.log(bold('\nTrustMeBro Setup'));
+console.log(cyan('Not Skynet. Probably.\n'));
+
+// Check/create .env
+const envPath = path.join(rootDir, '.env');
+const envExamplePath = path.join(rootDir, '.env.example');
+
+if (!existsSync(envPath) && existsSync(envExamplePath)) {
+  console.log('Creating .env from .env.example...');
+  const fs = require('fs');
+  fs.copyFileSync(envExamplePath, envPath);
 }
 
-async function main() {
-  // Check if .env exists, create from example if not
-  const envPath = path.join(rootDir, '.env');
-  const envExamplePath = path.join(rootDir, '.env.example');
-  
-  if (!existsSync(envPath) && existsSync(envExamplePath)) {
-    console.log('Creating .env from .env.example...');
-    const fs = require('fs');
-    fs.copyFileSync(envExamplePath, envPath);
-  }
-
-  // Install dependencies
+// Build
+try {
   console.log('Installing dependencies...');
-  if (!run(`${npmCmd} install`)) {
-    process.exit(1);
-  }
+  execSync(`${npmCmd} install`, { cwd: rootDir, stdio: 'inherit' });
 
-  // Build core
-  console.log('');
-  console.log('Building core package...');
-  if (!run(`${npmCmd} run build:core`)) {
-    process.exit(1);
-  }
+  console.log('\nBuilding core...');
+  execSync(`${npmCmd} run build:core`, { cwd: rootDir, stdio: 'inherit' });
 
-  // Build CLI
-  console.log('');
-  console.log('Building CLI...');
-  if (!run(`${npmCmd} run build:cli`)) {
-    process.exit(1);
-  }
+  console.log('\nBuilding CLI...');
+  execSync(`${npmCmd} run build:cli`, { cwd: rootDir, stdio: 'inherit' });
 
-  // Run setup wizard
-  console.log('');
-  console.log('Starting setup wizard...');
-  console.log('');
-
-  const cliPath = path.join(rootDir, 'packages', 'cli', 'dist', 'index.js');
-  
-  if (!existsSync(cliPath)) {
-    console.error('CLI build failed. Try running:');
-    console.error(`  ${npmCmd} run build:cli`);
-    process.exit(1);
-  }
-
-  try {
-    execSync(`node "${cliPath}" setup`, {
-      cwd: rootDir,
-      stdio: 'inherit',
-      shell: isWindows || true,
-    });
-  } catch (err) {
-    if (err.status !== 0) {
-      console.error('Setup failed:', err.message);
-      process.exit(1);
-    }
-  }
+  console.log(green('\n✓ Build complete!\n'));
+} catch (err) {
+  console.error('\nBuild failed:', err.message);
+  process.exit(1);
 }
 
-main().catch((err) => {
-  console.error('Setup failed:', err.message);
+// Run setup directly via compiled CLI (no tmb needed)
+const cliPath = path.join(rootDir, 'packages', 'cli', 'dist', 'index.js');
+
+if (!existsSync(cliPath)) {
+  console.error('CLI build failed. Please run: npm run build:cli');
+  process.exit(1);
+}
+
+console.log('Starting setup wizard...\n');
+
+const setupProcess = spawn('node', [cliPath, 'setup'], {
+  cwd: rootDir,
+  stdio: 'inherit',
+  env: { ...process.env },
+});
+
+setupProcess.on('exit', (code) => {
+  process.exit(code || 0);
+});
+
+setupProcess.on('error', (err) => {
+  console.error('Failed to start setup:', err.message);
   process.exit(1);
 });
