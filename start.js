@@ -103,6 +103,25 @@ switch (command) {
   default:
     // Start API + Dashboard
     if (needsBuild()) build();
+    
+    // Check if configured
+    const envPath = resolve(rootDir, '.env');
+    const fs = require('fs');
+    let isConfigured = false;
+    
+    if (existsSync(envPath)) {
+      const envContent = fs.readFileSync(envPath, 'utf-8');
+      isConfigured = envContent.includes('LLM_API_KEY=') && 
+                     !envContent.includes('LLM_API_KEY=\n') && 
+                     !envContent.includes('LLM_API_KEY=your_api_key_here');
+    }
+    
+    if (!isConfigured) {
+      console.log(yellow('\n  Looks like TrustMeBro is not configured yet.\n'));
+      console.log('  Run: ' + green('node start.js setup') + '\n');
+      process.exit(0);
+    }
+    
     console.log(bold('\nStarting TrustMeBro...'));
     console.log(dim('  API:       http://localhost:3000'));
     console.log(dim('  Dashboard: http://localhost:5173'));
