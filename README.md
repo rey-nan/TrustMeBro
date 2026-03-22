@@ -17,6 +17,8 @@ curl -fsSL https://raw.githubusercontent.com/rey-nan/TrustMeBro/main/install.sh 
 iwr -useb https://raw.githubusercontent.com/rey-nan/TrustMeBro/main/install.ps1 | iex
 ```
 
+> **Important:** When copying commands above, check that special characters (`&&`, `|`, `:`) are correct after pasting. Some terminals and chat apps corrupt these characters. If the command fails, type it manually.
+
 The installer will:
 - Install Node.js and Git if needed
 - Download TrustMeBro
