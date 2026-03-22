@@ -17,25 +17,32 @@ const chatSchema = z.object({
 });
 
 const configSchema = z.object({
-  systemPrompt: z.string().optional(),
+  soulExtras: z.string().optional(),
   model: z.string().optional(),
 });
 
 const META_CONFIG_PATH = path.join(process.cwd(), 'data', 'meta-config.json');
 
 interface MetaConfig {
-  systemPrompt: string;
+  soulExtras: string;
   model: string;
 }
 
 function loadMetaConfig(): MetaConfig {
   try {
     if (fs.existsSync(META_CONFIG_PATH)) {
-      return JSON.parse(fs.readFileSync(META_CONFIG_PATH, 'utf-8'));
+      const loaded = JSON.parse(fs.readFileSync(META_CONFIG_PATH, 'utf-8'));
+      // Migrate old systemPrompt field to soulExtras
+      if (loaded.systemPrompt && !loaded.soulExtras) {
+        loaded.soulExtras = loaded.systemPrompt;
+        delete loaded.systemPrompt;
+        saveMetaConfig(loaded);
+      }
+      return loaded;
     }
   } catch {}
   return {
-    systemPrompt: '',
+    soulExtras: '',
     model: process.env.LLM_DEFAULT_MODEL || 'deepseek/deepseek-chat',
   };
 }
@@ -93,15 +100,17 @@ export async function metaRoutes(fastify: FastifyInstance): Promise<void> {
     return reply.send({
       success: true,
       data: {
-        ...config,
+        soulExtras: config.soulExtras,
+        model: config.model,
         currentModel: process.env.LLM_DEFAULT_MODEL || 'not set',
         provider: process.env.LLM_PROVIDER || 'not set',
+        note: 'Base SOUL is hardcoded. This field adds extra traits on top.',
       },
       timestamp: Date.now(),
     });
   });
 
-  // Update Meta-Agent config
+  // Update Meta-Agent config (only extras, not base SOUL)
   fastify.put<{
     Body: z.infer<typeof configSchema>;
     Reply: ApiResponse;
@@ -110,8 +119,8 @@ export async function metaRoutes(fastify: FastifyInstance): Promise<void> {
       const parsed = configSchema.parse(request.body);
       const current = loadMetaConfig();
 
-      if (parsed.systemPrompt !== undefined) {
-        current.systemPrompt = parsed.systemPrompt;
+      if (parsed.soulExtras !== undefined) {
+        current.soulExtras = parsed.soulExtras;
       }
       if (parsed.model !== undefined) {
         current.model = parsed.model;
@@ -121,7 +130,7 @@ export async function metaRoutes(fastify: FastifyInstance): Promise<void> {
 
       return reply.send({
         success: true,
-        data: { message: 'Config saved. Restart API to apply model changes.' },
+        data: { message: 'Extras saved. Base SOUL unchanged. Restart API to apply.' },
         timestamp: Date.now(),
       });
     } catch (error) {
