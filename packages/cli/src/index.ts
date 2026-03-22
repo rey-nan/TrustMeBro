@@ -56,10 +56,12 @@ async function main(): Promise<void> {
   // Register setup command first
   program.addCommand(createSetupCommand());
 
-  // Add first-time check for other commands
+  // Add first-time check for other commands (skip if running setup)
   program.hook('preAction', (thisCommand) => {
-    console.log(chalk.dim('[DEBUG] preAction fired, command name:'), thisCommand.name());
-    if (thisCommand.name() !== 'setup' && needsSetup()) {
+    const args = process.argv.slice(2);
+    const isSetupCommand = args.includes('setup');
+    
+    if (!isSetupCommand && needsSetup()) {
       console.log();
       console.log(chalk.yellow("Looks like TrustMeBro isn't configured yet."));
       console.log(chalk.dim("Run '") + chalk.cyan('tmb setup') + chalk.dim("' to get started."));
