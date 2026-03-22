@@ -1,6 +1,6 @@
 #!/bin/bash
 # TrustMeBro Installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/rey-nan/TrustMeBro/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/rey-nan/TrustMeBro/main/install.sh -o /tmp/tmb_install.sh && bash /tmp/tmb_install.sh
 
 # CRITICAL: redirect stdin to /dev/tty when piped from curl
 if [ ! -t 0 ]; then
@@ -94,7 +94,7 @@ build_and_setup() {
   echo -e "${BOLD}Building CLI...${NC}"
   npm run build:cli
 
-  npm link packages/cli 2>/dev/null || true
+  cd packages/cli && npm link && cd ../..
 
   echo ""
   echo -e "${GREEN}✓ Build complete!${NC}"

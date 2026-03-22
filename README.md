@@ -9,7 +9,7 @@ Run AI agents on your computer. Free. No coding required.
 
 ### Linux / Mac (one command)
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rey-nan/TrustMeBro/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/rey-nan/TrustMeBro/main/install.sh -o /tmp/tmb_install.sh && bash /tmp/tmb_install.sh
 ```
 
 ### Windows (PowerShell — one command)
