@@ -819,6 +819,7 @@ export function createSetupCommand(): Command {
         message: 'What do you want to do?',
         choices: [
           { title: 'Chat now (skip setup)', value: 'chat' },
+          { title: 'Reconfigure (choose what to change)', value: 'reconfigure' },
           { title: 'Run full setup again', value: 'setup' },
         ],
         initial: 0,
@@ -843,6 +844,53 @@ export function createSetupCommand(): Command {
           console.log();
           await startAgentChat('meta', 'Meta-Agent');
         }
+        return;
+      }
+
+      if (action === 'reconfigure') {
+        // Show reconfigure menu
+        console.log();
+        console.log(chalk.bold('What do you want to change?'));
+        console.log(chalk.dim('─'.repeat(40)));
+        
+        const { whatToChange } = await prompts({
+          type: 'multiselect',
+          name: 'whatToChange',
+          message: 'Select what to reconfigure:',
+          choices: [
+            { title: 'AI Provider & API Key', value: 'provider', selected: false },
+            { title: 'Default Model', value: 'model', selected: false },
+            { title: 'Telegram Integration', value: 'telegram', selected: false },
+            { title: 'Create new Agent', value: 'agent', selected: false },
+          ],
+          hint: '- Space to select, Enter to confirm',
+        });
+
+        if (!whatToChange || whatToChange.length === 0) {
+          console.log(chalk.yellow('\nNo changes selected. Exiting.'));
+          return;
+        }
+
+        // Handle each selection
+        for (const item of whatToChange) {
+          if (item === 'telegram') {
+            const telegramResult = await configureTelegram();
+            if (telegramResult) {
+              saveEnv({
+                TELEGRAM_BOT_TOKEN: telegramResult.token,
+                TELEGRAM_CHAT_ID: telegramResult.chatId,
+              });
+              console.log(chalk.green('✓ Telegram configured!'));
+            }
+          } else if (item === 'agent') {
+            await createFirstAgent();
+          } else if (item === 'provider' || item === 'model') {
+            console.log(chalk.yellow('\nFor provider/model changes, run full setup: ') + chalk.cyan('tmb setup'));
+          }
+        }
+
+        console.log(chalk.green('\n✓ Reconfiguration complete!'));
+        console.log(chalk.dim('Restart the API to apply changes: ') + chalk.cyan('node start.js'));
         return;
       }
 
