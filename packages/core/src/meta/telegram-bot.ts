@@ -129,13 +129,20 @@ export class TelegramBot {
       return;
     }
 
+    // Start typing indicator
+    const typingInterval = this.startTypingInterval(chatId);
+
     try {
       logger.info('Calling onMessage handler...');
       const response = await this.onMessage(chatId, text);
       logger.info({ responseLength: response.length }, 'Got response from handler');
+      
+      // Stop typing, send response
+      this.stopTypingInterval(typingInterval);
       await this.sendMessage(chatId, response);
       logger.info('Response sent to Telegram');
     } catch (err) {
+      this.stopTypingInterval(typingInterval);
       logger.error({ err }, 'Error handling message');
       await this.sendMessage(chatId, 'Sorry, an error occurred processing your message.');
     }
@@ -157,6 +164,37 @@ export class TelegramBot {
     } catch (err) {
       logger.error({ err }, 'Failed to send Telegram message');
     }
+  }
+
+  async sendTyping(chatId: string): Promise<void> {
+    if (!this.config) return;
+
+    try {
+      await fetch(`https://api.telegram.org/bot${this.config.botToken}/sendChatAction`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          action: 'typing',
+        }),
+      });
+    } catch (err) {
+      // Silent fail - typing indicator is not critical
+    }
+  }
+
+  private startTypingInterval(chatId: string): NodeJS.Timeout {
+    // Send typing immediately
+    this.sendTyping(chatId);
+    
+    // Keep sending every 4 seconds (Telegram typing lasts ~5 seconds)
+    return setInterval(() => {
+      this.sendTyping(chatId);
+    }, 4000);
+  }
+
+  private stopTypingInterval(interval: NodeJS.Timeout): void {
+    clearInterval(interval);
   }
 
   stop(): void {
