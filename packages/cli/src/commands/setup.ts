@@ -890,9 +890,10 @@ export function createSetupCommand(): Command {
     console.log(chalk.dim('─'.repeat(40)));
 
     let apiKey = '';
-    let baseUrl = 'http://localhost:11434';
+    let baseUrl = '';
 
     if (provider.id === 'ollama') {
+      baseUrl = 'http://localhost:11434';
       // Setup Ollama
       const ollamaReady = await setupOllama();
       if (!ollamaReady) {
@@ -918,6 +919,7 @@ export function createSetupCommand(): Command {
       }, { onCancel });
       if (cancelled) return;
       apiKey = key;
+      baseUrl = 'https://api.groq.com/openai/v1/chat/completions';
     } else if (provider.id === 'openrouter') {
       console.log(chalk.dim('Get your FREE OpenRouter API key:'));
       console.log(chalk.dim('1. Go to: ') + chalk.cyan('https://openrouter.ai/keys'));
@@ -933,6 +935,7 @@ export function createSetupCommand(): Command {
       }, { onCancel });
       if (cancelled) return;
       apiKey = key;
+      baseUrl = 'https://openrouter.ai/api/v1/chat/completions';
     } else {
       // OpenAI Compatible
       const { url } = await prompts({
