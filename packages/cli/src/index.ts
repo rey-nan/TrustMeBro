@@ -58,6 +58,7 @@ async function main(): Promise<void> {
 
   // Add first-time check for other commands
   program.hook('preAction', (thisCommand) => {
+    console.log(chalk.dim('[DEBUG] preAction fired, command name:'), thisCommand.name());
     if (thisCommand.name() !== 'setup' && needsSetup()) {
       console.log();
       console.log(chalk.yellow("Looks like TrustMeBro isn't configured yet."));
