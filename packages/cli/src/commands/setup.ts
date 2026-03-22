@@ -849,42 +849,43 @@ export function createSetupCommand(): Command {
 
       if (action === 'reconfigure') {
         // Show reconfigure menu
-        console.log();
-        console.log(chalk.bold('What do you want to change?'));
-        console.log(chalk.dim('─'.repeat(40)));
+        let keepReconfiguring = true;
         
-        const { whatToChange } = await prompts({
-          type: 'multiselect',
-          name: 'whatToChange',
-          message: 'Select what to reconfigure:',
-          choices: [
-            { title: 'AI Provider & API Key', value: 'provider', selected: false },
-            { title: 'Default Model', value: 'model', selected: false },
-            { title: 'Telegram Integration', value: 'telegram', selected: false },
-            { title: 'Create new Agent', value: 'agent', selected: false },
-          ],
-          hint: '- Space to select, Enter to confirm',
-        });
+        while (keepReconfiguring) {
+          console.log();
+          console.log(chalk.bold('What do you want to change?'));
+          console.log(chalk.dim('─'.repeat(40)));
+          
+          const { whatToChange } = await prompts({
+            type: 'select',
+            name: 'whatToChange',
+            message: 'Select what to reconfigure:',
+            choices: [
+              { title: 'AI Provider & API Key', value: 'provider' },
+              { title: 'Default Model', value: 'model' },
+              { title: 'Telegram Integration', value: 'telegram' },
+              { title: 'Create new Agent', value: 'agent' },
+              { title: 'Done — exit', value: 'done' },
+            ],
+          });
 
-        if (!whatToChange || whatToChange.length === 0) {
-          console.log(chalk.yellow('\nNo changes selected. Exiting.'));
-          return;
-        }
+          if (!whatToChange || whatToChange === 'done') {
+            keepReconfiguring = false;
+            break;
+          }
 
-        // Handle each selection
-        for (const item of whatToChange) {
-          if (item === 'telegram') {
+          if (whatToChange === 'telegram') {
             const telegramResult = await configureTelegram();
             if (telegramResult) {
               saveEnv({
                 TELEGRAM_BOT_TOKEN: telegramResult.token,
                 TELEGRAM_CHAT_ID: telegramResult.chatId,
               });
-              console.log(chalk.green('✓ Telegram configured!'));
+              console.log(chalk.green('\n✓ Telegram configured!'));
             }
-          } else if (item === 'agent') {
+          } else if (whatToChange === 'agent') {
             await createFirstAgent();
-          } else if (item === 'provider' || item === 'model') {
+          } else if (whatToChange === 'provider' || whatToChange === 'model') {
             console.log(chalk.yellow('\nFor provider/model changes, run full setup: ') + chalk.cyan('tmb setup'));
           }
         }
