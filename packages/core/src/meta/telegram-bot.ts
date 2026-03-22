@@ -30,6 +30,17 @@ export class TelegramBot {
   }
 
   private loadConfig(): void {
+    // First try process.env (loaded by dotenv in API)
+    if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
+      this.config = {
+        botToken: process.env.TELEGRAM_BOT_TOKEN,
+        chatId: process.env.TELEGRAM_CHAT_ID,
+      };
+      logger.info({ chatId: this.config.chatId }, 'Telegram config loaded from env');
+      return;
+    }
+
+    // Fallback: try reading .env file directly
     const envPath = path.join(process.cwd(), '.env');
     try {
       if (fs.existsSync(envPath)) {
@@ -45,11 +56,15 @@ export class TelegramBot {
             botToken: env.TELEGRAM_BOT_TOKEN,
             chatId: env.TELEGRAM_CHAT_ID,
           };
-          logger.info('Telegram config loaded');
+          logger.info({ chatId: this.config.chatId }, 'Telegram config loaded from file');
         }
       }
     } catch (err) {
       logger.error({ err }, 'Failed to load Telegram config');
+    }
+
+    if (!this.config) {
+      logger.info('Telegram not configured');
     }
   }
 
