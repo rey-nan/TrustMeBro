@@ -119,16 +119,6 @@ export class TelegramBot {
       }
     }
   }
-          }
-        }
-      } catch (err: any) {
-        if (!err.message?.includes('timeout')) {
-          logger.error({ err: err.message }, 'Telegram polling error');
-          await new Promise(r => setTimeout(r, 5000)); // Wait before retry
-        }
-      }
-    }
-  }
 
   private async handleMessage(chatId: string, text: string): Promise<void> {
     logger.info({ chatId, text }, 'Handling Telegram message');
