@@ -31,15 +31,18 @@ const DEPT_COLORS: Record<string, string> = {
 
 // Simple markdown renderer
 function renderMarkdown(text: string): string {
-  // Remove ALL XML-like tags first
+  // Remove ALL XML-like tags including multiline
   let clean = text
     .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/gi, '')
     .replace(/<apicall>[\s\S]*?<\/apicall>/gi, '')
     .replace(/<api_call>[\s\S]*?<\/api_call>/gi, '')
     .replace(/<api_result>[\s\S]*?<\/api_result>/gi, '')
     .replace(/<api_error>[\s\S]*?<\/api_error>/gi, '')
-    .replace(/<[^>]+>/g, '') // Remove any remaining HTML/XML tags
+    .replace(/<[^>]*>/g, '') // Remove any remaining tags
+    .replace(/\s+/g, ' ') // Collapse whitespace
     .trim();
+  
+  if (!clean) return '';
   
   return clean
     // Code blocks
@@ -408,11 +411,12 @@ export function Home() {
         <div style={{
           width: '100%',
           maxWidth: 500,
-          height: '100%',
+          flex: 1,
           display: 'flex',
           flexDirection: 'column',
           zIndex: 10,
           animation: 'slideUp 0.4s ease',
+          paddingBottom: 80,
         }}>
           {/* Messages - scrollable */}
           <div style={{
@@ -420,7 +424,7 @@ export function Home() {
             overflowY: 'auto',
             overflowX: 'hidden',
             padding: '16px 0',
-            minHeight: 0,
+            minHeight: 100,
           }}>
             {messages.length === 0 && (
               <p style={{
