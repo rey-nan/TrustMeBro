@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { api } from '../api/client';
 
 // ═══════════════════════════════════════════════════════════
 // Design System Colors
@@ -20,25 +21,39 @@ const fonts = {
   body: "'Inter', sans-serif",
 };
 
+const AGENT_EMOJIS = ['🔍', '💻', '📝', '📊', '🧪', '🎨', '🔬', '📡', '🛠️', '🤖'];
+const AGENT_COLORS = [colors.green, colors.purple, colors.primary, '#ff887c', '#fbd75b', '#ffb878'];
+
 interface Agent {
   id: string;
   name: string;
-  emoji: string;
-  status: 'active' | 'idle';
-  accentColor: string;
+  status?: string;
 }
-
-const mockAgents: Agent[] = [
-  { id: '1', name: 'Pesquisador', emoji: '🔍', status: 'active', accentColor: colors.green },
-  { id: '2', name: 'Coder', emoji: '💻', status: 'active', accentColor: colors.purple },
-  { id: '3', name: 'Writer', emoji: '📝', status: 'idle', accentColor: colors.primary },
-  { id: '4', name: 'Analyst', emoji: '📊', status: 'idle', accentColor: colors.onSurfaceDim },
-  { id: '5', name: 'Tester', emoji: '🧪', status: 'idle', accentColor: colors.onSurfaceDim },
-];
 
 export function Home() {
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const agents = mockAgents;
+  const [agents, setAgents] = useState<Agent[]>([]);
+
+  useEffect(() => {
+    loadAgents();
+  }, []);
+
+  const loadAgents = async () => {
+    try {
+      const res = await api.get('/api/agents');
+      if (res.success && res.data) {
+        setAgents(res.data as Agent[]);
+      }
+    } catch (err) {
+      // Silently fail - agents list will be empty
+    }
+  };
+
+  // Assign emoji and color based on index
+  const getAgentStyle = (index: number) => ({
+    emoji: AGENT_EMOJIS[index % AGENT_EMOJIS.length],
+    color: AGENT_COLORS[index % AGENT_COLORS.length],
+  });
 
   return (
     <div style={{
@@ -189,75 +204,85 @@ export function Home() {
         )}
       </div>
 
-      {/* Agent Avatars Grid */}
-      <div style={{
-        marginTop: 50,
-        width: '100%',
-        maxWidth: 300,
-        zIndex: 10,
-      }}>
+      {/* Agent Avatars Grid - Real data */}
+      {agents.length > 0 && (
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 28,
-          justifyItems: 'center',
+          marginTop: 50,
+          width: '100%',
+          maxWidth: 300,
+          zIndex: 10,
         }}>
-          {agents.map((agent) => (
-            <div
-              key={agent.id}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                opacity: agent.status === 'active' ? 1 : 0.35,
-                transition: 'all 0.3s ease',
-                cursor: 'pointer',
-              }}
-            >
-              {/* Avatar Circle */}
-              <div style={{
-                width: 56,
-                height: 56,
-                borderRadius: '50%',
-                background: agent.status === 'active' ? colors.surfaceCard : `${colors.surfaceCard}60`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 24,
-                border: agent.status === 'active' ? `1px solid ${agent.accentColor}40` : `1px solid ${colors.onSurfaceDim}15`,
-                boxShadow: agent.status === 'active' ? `0 0 20px ${agent.accentColor}30` : 'none',
-              }}>
-                {agent.emoji}
-              </div>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${Math.min(agents.length, 4)}, 1fr)`,
+            gap: 28,
+            justifyItems: 'center',
+          }}>
+            {agents.map((agent, index) => {
+              const style = getAgentStyle(index);
+              const isActive = agent.status !== 'idle';
+              return (
+                <div
+                  key={agent.id}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    opacity: isActive ? 1 : 0.35,
+                    transition: 'all 0.3s ease',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {/* Avatar Circle */}
+                  <div style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: '50%',
+                    background: isActive ? colors.surfaceCard : `${colors.surfaceCard}60`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 24,
+                    border: isActive ? `1px solid ${style.color}40` : `1px solid ${colors.onSurfaceDim}15`,
+                    boxShadow: isActive ? `0 0 20px ${style.color}30` : 'none',
+                  }}>
+                    {style.emoji}
+                  </div>
 
-              {/* Name */}
-              <span style={{
-                fontFamily: fonts.display,
-                fontSize: 9,
-                color: agent.status === 'active' ? colors.onSurfaceDim : `${colors.onSurfaceDim}60`,
-                marginTop: 8,
-              }}>
-                {agent.name}
-              </span>
+                  {/* Name */}
+                  <span style={{
+                    fontFamily: fonts.display,
+                    fontSize: 9,
+                    color: isActive ? colors.onSurfaceDim : `${colors.onSurfaceDim}60`,
+                    marginTop: 8,
+                    textAlign: 'center',
+                    maxWidth: 70,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {agent.name}
+                  </span>
 
-              {/* Status Dot */}
-              <div style={{
-                width: 5,
-                height: 5,
-                borderRadius: '50%',
-                background: agent.status === 'active' ? colors.green : `${colors.onSurfaceDim}25`,
-                marginTop: 4,
-                animation: agent.status === 'active' ? 'pulse 2s infinite' : 'none',
-                boxShadow: agent.status === 'active' ? `0 0 6px ${colors.green}60` : 'none',
-              }} />
-            </div>
-          ))}
+                  {/* Status Dot */}
+                  <div style={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: '50%',
+                    background: isActive ? colors.green : `${colors.onSurfaceDim}25`,
+                    marginTop: 4,
+                    animation: isActive ? 'pulse 2s infinite' : 'none',
+                    boxShadow: isActive ? `0 0 6px ${colors.green}60` : 'none',
+                  }} />
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* CSS Animations */}
       <style>{`
-        /* Eye Sprite Animation */
         @keyframes eyeLife {
           0%, 80% { background-position: 0% 0%; }
           82% { background-position: 33.333% 0%; }
@@ -278,7 +303,6 @@ export function Home() {
           box-shadow: 0 0 80px rgba(0, 242, 255, 0.35), 0 0 150px rgba(0, 242, 255, 0.15) !important;
         }
 
-        /* Ambient glow pulse */
         .ambient-glow {
           animation: ambientPulse 6s ease-in-out infinite;
         }
@@ -294,7 +318,6 @@ export function Home() {
           }
         }
 
-        /* Ring animations */
         @keyframes ringPulse {
           0%, 100% { 
             opacity: 0.3;
