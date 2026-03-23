@@ -57,6 +57,9 @@ export async function agentsRoutes(fastify: FastifyInstance): Promise<void> {
     try {
       const parsed = createAgentSchema.parse(request.body);
 
+      // Use default LLM if no model specified
+      const agentModel = parsed.model || process.env.LLM_DEFAULT_MODEL || null;
+
       const insertStmt = db.prepare(`
         INSERT OR REPLACE INTO agents (id, name, description, system_prompt, model, temperature, max_tokens, timeout_ms, max_retries, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -67,7 +70,7 @@ export async function agentsRoutes(fastify: FastifyInstance): Promise<void> {
         parsed.name,
         parsed.description,
         parsed.systemPrompt,
-        parsed.model ?? null,
+        agentModel,
         parsed.temperature ?? null,
         parsed.maxTokens ?? null,
         parsed.timeoutMs ?? null,
@@ -80,7 +83,7 @@ export async function agentsRoutes(fastify: FastifyInstance): Promise<void> {
         name: parsed.name,
         description: parsed.description,
         systemPrompt: parsed.systemPrompt,
-        model: parsed.model,
+        model: agentModel || undefined,
         temperature: parsed.temperature,
         maxTokens: parsed.maxTokens,
         timeoutMs: parsed.timeoutMs,
