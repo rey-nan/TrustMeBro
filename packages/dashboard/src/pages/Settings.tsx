@@ -16,6 +16,15 @@ interface SandboxStatus {
   error?: string;
 }
 
+interface EnvConfig {
+  LLM_PROVIDER: string;
+  LLM_API_KEY: string;
+  LLM_DEFAULT_MODEL: string;
+  LLM_BASE_URL: string;
+  TELEGRAM_BOT_TOKEN: string;
+  TELEGRAM_CHAT_ID: string;
+}
+
 interface MetaConfig {
   soulExtras: string;
   model: string;
@@ -79,15 +88,24 @@ export function Settings() {
   const [sandboxStatus, setSandboxStatus] = useState<SandboxStatus | null>(null);
 
   // Meta-Agent config
+  const [envConfig, setEnvConfig] = useState<EnvConfig | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState('openrouter');
   const [metaConfig, setMetaConfig] = useState<MetaConfig>({ soulExtras: '', model: '' });
   const [metaSaving, setMetaSaving] = useState(false);
   const [metaSaveMessage, setMetaSaveMessage] = useState('');
+  const [configSaved, setConfigSaved] = useState(false);
+
+  // Telegram status
+  const [telegramStatus, setTelegramStatus] = useState<{ configured: boolean; running: boolean }>({ configured: false, running: false });
+  const [telegramLoading, setTelegramLoading] = useState(false);
 
   useEffect(() => {
     loadStatus();
     loadReasoningBudget();
     loadSandboxStatus();
+    loadEnvConfig();
     loadMetaConfig();
+    checkTelegramStatus();
   }, []);
 
   const loadStatus = async () => {
@@ -105,6 +123,16 @@ export function Settings() {
     if (res.success && res.data) setSandboxStatus(res.data);
   };
 
+  const loadEnvConfig = async () => {
+    try {
+      const res = await api.get<EnvConfig>('/api/meta/env');
+      if (res.success && res.data) {
+        setEnvConfig(res.data);
+        setSelectedProvider(res.data.LLM_PROVIDER || 'openrouter');
+      }
+    } catch {}
+  };
+
   const loadMetaConfig = async () => {
     try {
       const res = await api.get<MetaConfig>('/api/meta/config');
@@ -117,13 +145,53 @@ export function Settings() {
     } catch {}
   };
 
+  const checkTelegramStatus = async () => {
+    try {
+      const res = await api.get('/api/status');
+      if (res.success && res.data) {
+        const data = res.data as any;
+        const hasToken = data.telegramConfigured || (envConfig?.TELEGRAM_BOT_TOKEN && envConfig.TELEGRAM_BOT_TOKEN.length > 0);
+        setTelegramStatus({ configured: !!hasToken, running: false });
+      }
+    } catch {}
+  };
+
+  const startTelegram = async () => {
+    setTelegramLoading(true);
+    try {
+      const res = await api.post('/api/telegram/start', {});
+      if (res.success) {
+        setTelegramStatus({ configured: true, running: true });
+        setMetaSaveMessage('Telegram bot started!');
+      } else {
+        setMetaSaveMessage(`Error: ${res.error}`);
+      }
+    } catch {
+      setMetaSaveMessage('Error starting Telegram bot');
+    }
+    setTelegramLoading(false);
+    setTimeout(() => setMetaSaveMessage(''), 3000);
+  };
+
   const saveMetaConfig = async () => {
     setMetaSaving(true);
     setMetaSaveMessage('');
-    const res = await api.put('/api/meta/config', metaConfig);
+
+    // Save env config
+    const envData: Record<string, string> = { LLM_PROVIDER: selectedProvider };
+    ['LLM_API_KEY', 'LLM_DEFAULT_MODEL', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID'].forEach(key => {
+      const el = document.getElementById(`env-${key}`) as HTMLInputElement;
+      if (el) envData[key] = el.value;
+    });
+    await api.put('/api/meta/env', envData);
+
+    // Save meta config (soul extras)
+    await api.put('/api/meta/config', metaConfig);
+
     setMetaSaving(false);
-    setMetaSaveMessage(res.success ? 'Saved!' : `Error: ${res.error}`);
-    setTimeout(() => setMetaSaveMessage(''), 3000);
+    setConfigSaved(true);
+    setMetaSaveMessage('Saved! Restart API to apply changes.');
+    setTimeout(() => setMetaSaveMessage(''), 5000);
   };
 
   const applyReasoningConfig = async () => {
@@ -149,6 +217,16 @@ export function Settings() {
     display: 'block' as const,
   };
 
+  const inputStyle = {
+    width: '100%',
+    padding: '10px 12px',
+    background: colors.surface,
+    border: `1px solid ${colors.outline}40`,
+    borderRadius: 6,
+    color: colors.onSurface,
+    fontSize: 13,
+  };
+
   const renderSystemTab = () => (
     <>
       <div style={cardStyle}>
@@ -165,50 +243,130 @@ export function Settings() {
 
       <div style={cardStyle}>
         <h2 style={{ marginBottom: 16, fontSize: 14, fontFamily: colors.display, color: colors.primaryText }}>API Security</h2>
-        <p style={{ fontSize: 12, color: colors.onSurfaceDim, marginBottom: 16 }}>
-          Set API_SECRET_KEY to protect your API endpoints.
-        </p>
         <label style={labelStyle}>API Secret Key</label>
-        <input type="password" value={apiSecretKey} onChange={(e) => setApiSecretKey(e.target.value)} placeholder="Set a strong secret key" />
+        <input type="password" value={apiSecretKey} onChange={(e) => setApiSecretKey(e.target.value)} placeholder="Set a strong secret key" style={inputStyle} />
       </div>
     </>
   );
 
   const renderMetaAgentTab = () => (
     <>
-      <div style={cardStyle}>
-        <h2 style={{ marginBottom: 8, fontSize: 14, fontFamily: colors.display, color: colors.primaryText }}>Meta-Agent Personality</h2>
-        <p style={{ fontSize: 12, color: colors.onSurfaceDim, marginBottom: 16 }}>
-          Base SOUL is hardcoded. This adds extra traits on top.
-        </p>
+      {/* Config saved warning */}
+      {configSaved && (
+        <div style={{
+          background: 'rgba(255,165,0,0.1)',
+          border: '1px solid orange',
+          borderRadius: 8,
+          padding: 12,
+          marginBottom: 16,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}>
+          <div>
+            <div style={{ fontWeight: 'bold', color: 'orange', fontSize: 13 }}>Config saved but not applied</div>
+            <div style={{ fontSize: 11, color: colors.onSurfaceDim }}>Restart the API to apply changes.</div>
+          </div>
+          <button onClick={() => setConfigSaved(false)} style={{ padding: '4px 12px', background: 'transparent', border: '1px solid orange', borderRadius: 4, color: 'orange', fontSize: 11 }}>
+            Dismiss
+          </button>
+        </div>
+      )}
 
-        <label style={labelStyle}>Soul Extras (additional personality traits)</label>
+      {/* LLM Configuration */}
+      <div style={cardStyle}>
+        <h2 style={{ marginBottom: 16, fontSize: 14, fontFamily: colors.display, color: colors.primaryText }}>LLM Configuration</h2>
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div>
+            <label style={labelStyle}>Provider</label>
+            <select value={selectedProvider} onChange={(e) => setSelectedProvider(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
+              <option value="openrouter">OpenRouter</option>
+              <option value="groq">Groq</option>
+              <option value="ollama">Ollama</option>
+              <option value="openai-compatible">OpenAI Compatible</option>
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>API Key</label>
+            <input id="env-LLM_API_KEY" type="password" defaultValue={envConfig?.LLM_API_KEY || ''} placeholder="Enter API key" style={inputStyle} />
+            {envConfig?.LLM_API_KEY && <div style={{ fontSize: 10, color: colors.onSurfaceDim, marginTop: 4 }}>Current: {envConfig.LLM_API_KEY}</div>}
+          </div>
+          <div>
+            <label style={labelStyle}>Model</label>
+            <input id="env-LLM_DEFAULT_MODEL" defaultValue={envConfig?.LLM_DEFAULT_MODEL || ''} placeholder="e.g., deepseek/deepseek-chat" style={inputStyle} />
+          </div>
+        </div>
+      </div>
+
+      {/* Telegram */}
+      <div style={cardStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 style={{ marginBottom: 0, fontSize: 14, fontFamily: colors.display, color: colors.primaryText }}>Telegram Integration</h2>
+          <button
+            onClick={startTelegram}
+            disabled={telegramLoading || !envConfig?.TELEGRAM_BOT_TOKEN}
+            style={{
+              padding: '6px 14px',
+              background: telegramStatus.running ? colors.green : colors.primary,
+              color: colors.surface,
+              border: 'none',
+              borderRadius: 6,
+              fontSize: 11,
+              fontFamily: colors.display,
+              fontWeight: 'bold',
+              cursor: telegramLoading ? 'not-allowed' : 'pointer',
+              opacity: telegramLoading || !envConfig?.TELEGRAM_BOT_TOKEN ? 0.5 : 1,
+            }}
+          >
+            {telegramLoading ? 'Starting...' : telegramStatus.running ? 'Running' : 'Start Bot'}
+          </button>
+        </div>
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div>
+            <label style={labelStyle}>Bot Token</label>
+            <input id="env-TELEGRAM_BOT_TOKEN" type="password" defaultValue={envConfig?.TELEGRAM_BOT_TOKEN || ''} placeholder="Enter bot token" style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Chat ID</label>
+            <input id="env-TELEGRAM_CHAT_ID" defaultValue={envConfig?.TELEGRAM_CHAT_ID || ''} placeholder="Your Telegram chat ID" style={inputStyle} />
+          </div>
+        </div>
+      </div>
+
+      {/* SOUL Extras */}
+      <div style={cardStyle}>
+        <h2 style={{ marginBottom: 8, fontSize: 14, fontFamily: colors.display, color: colors.primaryText }}>Meta-Agent SOUL</h2>
+        <p style={{ fontSize: 12, color: colors.onSurfaceDim, marginBottom: 16 }}>
+          Base SOUL is hardcoded. This adds extra personality traits on top.
+        </p>
+        <label style={labelStyle}>Soul Extras</label>
         <textarea
           value={metaConfig.soulExtras}
           onChange={(e) => setMetaConfig({ ...metaConfig, soulExtras: e.target.value })}
           placeholder="e.g., Be more formal with clients. Avoid Skynet jokes in serious contexts."
-          style={{ minHeight: 120 }}
+          style={{ ...inputStyle, minHeight: 100, resize: 'vertical' }}
         />
+      </div>
 
-        <div style={{ marginTop: 16 }}>
-          <label style={labelStyle}>Model Override</label>
-          <input
-            value={metaConfig.model}
-            onChange={(e) => setMetaConfig({ ...metaConfig, model: e.target.value })}
-            placeholder="e.g., openai/gpt-4o"
-          />
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 16 }}>
-          <button onClick={saveMetaConfig} disabled={metaSaving} className="primary">
-            {metaSaving ? 'Saving...' : 'Save Meta Config'}
-          </button>
-          {metaSaveMessage && (
-            <span style={{ fontSize: 12, color: metaSaveMessage.startsWith('Error') ? colors.red : colors.green }}>
-              {metaSaveMessage}
-            </span>
-          )}
-        </div>
+      {/* Save Button */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <button onClick={saveMetaConfig} disabled={metaSaving} style={{
+          padding: '10px 24px',
+          background: colors.green,
+          color: colors.surface,
+          border: 'none',
+          borderRadius: 6,
+          fontFamily: colors.display,
+          fontWeight: 'bold',
+          cursor: metaSaving ? 'not-allowed' : 'pointer',
+        }}>
+          {metaSaving ? 'Saving...' : 'Save All Config'}
+        </button>
+        {metaSaveMessage && (
+          <span style={{ fontSize: 12, color: metaSaveMessage.startsWith('Error') ? colors.red : colors.green }}>
+            {metaSaveMessage}
+          </span>
+        )}
       </div>
     </>
   );
@@ -247,7 +405,7 @@ export function Settings() {
       ))}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 16 }}>
-        <button onClick={applyReasoningConfig} disabled={saving} className="primary">
+        <button onClick={applyReasoningConfig} disabled={saving} style={{ padding: '10px 24px', background: colors.green, color: colors.surface, border: 'none', borderRadius: 6, fontFamily: colors.display, fontWeight: 'bold' }}>
           {saving ? 'Applying...' : 'Apply'}
         </button>
         {saveMessage && <span style={{ fontSize: 12, color: saveMessage.startsWith('Error') ? colors.red : colors.green }}>{saveMessage}</span>}
@@ -288,6 +446,10 @@ LLM_API_KEY=your-api-key
 LLM_BASE_URL=
 LLM_DEFAULT_MODEL=
 
+# Telegram
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+
 # Security
 API_SECRET_KEY=
 
@@ -310,7 +472,7 @@ DB_PATH=./data/trustmebro.db`}
 
   return (
     <div>
-      {/* Settings Tabs with horizontal scroll */}
+      {/* Settings Tabs */}
       <div style={{
         display: 'flex',
         overflowX: 'auto',
