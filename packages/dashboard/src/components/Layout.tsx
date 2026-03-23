@@ -14,10 +14,6 @@ interface NavItem {
   subPages?: { id: string; label: string }[];
 }
 
-// ═══════════════════════════════════════════════════════════
-// Design System: The Ethereal Command Center
-// ═══════════════════════════════════════════════════════════
-
 const styles = {
   surface: '#131313',
   surfaceMid: '#1c1b1b',
@@ -86,7 +82,6 @@ const NAV_ITEMS: NavItem[] = [
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const { connected } = useWebSocket();
 
-  // Get current section from page
   const getCurrentSection = (): string => {
     for (const item of NAV_ITEMS) {
       if (item.subPages?.some((sp) => sp.id === currentPage)) {
@@ -96,7 +91,6 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     return 'home';
   };
 
-  // Get sub-pages for current section
   const getCurrentSubPages = () => {
     const section = NAV_ITEMS.find((item) => item.id === getCurrentSection());
     return section?.subPages || [];
@@ -109,10 +103,11 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      minHeight: '100vh',
+      height: '100vh',
       background: styles.surface,
       color: styles.onSurface,
       fontFamily: styles.body,
+      overflow: 'hidden',
     }}>
       {/* Header */}
       <header style={{
@@ -120,11 +115,10 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: '16px 24px',
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
+        flexShrink: 0,
         background: `${styles.surface}ee`,
         backdropFilter: 'blur(10px)',
+        zIndex: 100,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{
@@ -139,7 +133,6 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          {/* Notifications */}
           <span
             className="material-symbols-outlined"
             onClick={() => onNavigate('activity-feed')}
@@ -153,7 +146,6 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             notifications
           </span>
 
-          {/* Settings */}
           <span
             className="material-symbols-outlined"
             onClick={() => onNavigate('settings')}
@@ -167,7 +159,6 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             settings
           </span>
 
-          {/* Connection Status */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -190,63 +181,74 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         </div>
       </header>
 
-      {/* Sub-Page Tabs (if section has multiple pages) */}
+      {/* Sub-Page Tabs with horizontal scroll */}
       {subPages.length > 1 && (
         <div style={{
           display: 'flex',
-          gap: 0,
+          overflowX: 'auto',
+          overflowY: 'hidden',
+          flexShrink: 0,
           padding: '0 24px',
           borderBottom: `1px solid ${styles.outline}20`,
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+          WebkitOverflowScrolling: 'touch',
         }}>
-          {subPages.map((sub) => {
-            const isActive = currentPage === sub.id;
-            return (
-              <button
-                key={sub.id}
-                onClick={() => onNavigate(sub.id)}
-                style={{
-                  padding: '12px 20px',
-                  background: 'transparent',
-                  border: 'none',
-                  borderBottom: isActive ? `2px solid ${styles.primary}` : '2px solid transparent',
-                  color: isActive ? styles.primary : styles.onSurfaceDim,
-                  fontFamily: styles.display,
-                  fontSize: 11,
-                  letterSpacing: '0.1em',
-                  textTransform: 'uppercase',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                }}
-              >
-                {sub.label}
-              </button>
-            );
-          })}
+          <style>{`.sub-tabs::-webkit-scrollbar { display: none; }`}</style>
+          <div className="sub-tabs" style={{
+            display: 'flex',
+            gap: 0,
+            whiteSpace: 'nowrap',
+          }}>
+            {subPages.map((sub) => {
+              const isActive = currentPage === sub.id;
+              return (
+                <button
+                  key={sub.id}
+                  onClick={() => onNavigate(sub.id)}
+                  style={{
+                    padding: '12px 20px',
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: isActive ? `2px solid ${styles.primary}` : '2px solid transparent',
+                    color: isActive ? styles.primary : styles.onSurfaceDim,
+                    fontFamily: styles.display,
+                    fontSize: 11,
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    flexShrink: 0,
+                  }}
+                >
+                  {sub.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
-      {/* Main Content */}
+      {/* Main Content - scrollable */}
       <main style={{
         flex: 1,
-        padding: '16px 24px 120px',
+        padding: '16px 24px',
         overflowY: 'auto',
-        position: 'relative',
+        overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
       }}>
         {children}
       </main>
 
-      {/* Bottom Navigation */}
+      {/* Bottom Navigation - always visible */}
       <nav style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        zIndex: 50,
-        background: `${styles.surfaceMid}cc`,
+        flexShrink: 0,
+        background: `${styles.surfaceMid}ee`,
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
         borderTop: `0.5px solid ${styles.primary}10`,
         padding: '12px 16px 28px',
+        zIndex: 100,
       }}>
         <div style={{
           display: 'flex',
@@ -261,7 +263,6 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               <button
                 key={item.id}
                 onClick={() => {
-                  // Navigate to first sub-page of section
                   const firstSub = item.subPages?.[0];
                   if (firstSub) onNavigate(firstSub.id);
                 }}

@@ -486,13 +486,12 @@ export function Home() {
         }
 
         .meta-eye-sprite {
-          animation: eyeLife 12s steps(1) infinite, eyeGlow 4s ease-in-out infinite;
+          animation: eyeLife 12s steps(1) infinite, eyeGlow 5s ease-in-out infinite;
           transition: all 0.3s ease;
-          box-shadow: 0 0 40px rgba(0, 242, 255, 0.15), 0 0 80px rgba(0, 242, 255, 0.05);
         }
 
         .meta-eye-sprite.thinking {
-          animation: eyeLife 12s steps(1) infinite, eyeGlowIntense 2s ease-in-out infinite;
+          animation: eyeLife 12s steps(1) infinite, eyeGlowIntense 1.5s ease-in-out infinite;
         }
 
         .meta-eye-sprite:hover {
@@ -500,22 +499,26 @@ export function Home() {
         }
 
         @keyframes eyeGlow {
-          0%, 100% { box-shadow: 0 0 40px rgba(0, 242, 255, 0.15), 0 0 80px rgba(0, 242, 255, 0.05); }
-          50% { box-shadow: 0 0 60px rgba(0, 242, 255, 0.25), 0 0 120px rgba(0, 242, 255, 0.08); }
+          0%, 100% {
+            box-shadow: 0 0 20px rgba(0, 242, 255, 0.08), 0 0 40px rgba(0, 242, 255, 0.03);
+          }
+          50% {
+            box-shadow: 0 0 80px rgba(0, 242, 255, 0.35), 0 0 160px rgba(0, 242, 255, 0.15);
+          }
         }
 
         @keyframes eyeGlowIntense {
-          0%, 100% { box-shadow: 0 0 60px rgba(0, 242, 255, 0.3), 0 0 120px rgba(0, 242, 255, 0.15); }
-          50% { box-shadow: 0 0 100px rgba(0, 242, 255, 0.5), 0 0 180px rgba(0, 242, 255, 0.2); }
+          0%, 100% { box-shadow: 0 0 60px rgba(0, 242, 255, 0.4), 0 0 120px rgba(0, 242, 255, 0.2); }
+          50% { box-shadow: 0 0 120px rgba(0, 242, 255, 0.7), 0 0 200px rgba(0, 242, 255, 0.3); }
         }
 
         .eye-outer-glow {
-          animation: outerGlowPulse 4s ease-in-out infinite;
+          animation: outerGlowPulse 5s ease-in-out infinite;
         }
 
         @keyframes outerGlowPulse {
-          0%, 100% { opacity: 0.4; transform: scale(1); }
-          50% { opacity: 0.8; transform: scale(1.03); }
+          0%, 100% { opacity: 0.15; transform: scale(0.95); }
+          50% { opacity: 1; transform: scale(1.08); }
         }
 
         .ambient-glow {
