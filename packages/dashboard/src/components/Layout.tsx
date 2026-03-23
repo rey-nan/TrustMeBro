@@ -113,6 +113,38 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          {/* Notifications */}
+          <span
+            className="material-symbols-outlined"
+            onClick={() => onNavigate('activity-feed')}
+            style={{
+              fontSize: 20,
+              color: `${styles.primary}80`,
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = styles.primary}
+            onMouseLeave={(e) => e.currentTarget.style.color = `${styles.primary}80`}
+          >
+            notifications
+          </span>
+
+          {/* Settings (Meta-Agent Config) */}
+          <span
+            className="material-symbols-outlined"
+            onClick={() => onNavigate('settings')}
+            style={{
+              fontSize: 20,
+              color: `${styles.primary}80`,
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = styles.primary}
+            onMouseLeave={(e) => e.currentTarget.style.color = `${styles.primary}80`}
+          >
+            settings
+          </span>
+
           {/* Connection Status */}
           <div style={{
             display: 'flex',
