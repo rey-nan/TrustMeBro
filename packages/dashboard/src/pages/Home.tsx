@@ -128,13 +128,21 @@ export function Home() {
   const handleSend = async () => {
     if (!input.trim()) return;
 
-    const userMsg: Message = { role: 'user', content: input };
+    // Clean input from any system tags
+    const cleanInput = input
+      .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/gi, '')
+      .replace(/<apicall>[\s\S]*?<\/apicall>/gi, '')
+      .replace(/<api_call>[\s\S]*?<\/api_call>/gi, '')
+      .replace(/<[^>]*>/g, '')
+      .trim();
+
+    const userMsg: Message = { role: 'user', content: cleanInput };
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setIsThinking(true);
 
     try {
-      const res = await api.post('/api/meta/chat', { message: input, conversationId });
+      const res = await api.post('/api/meta/chat', { message: cleanInput, conversationId });
       if (res.success && res.data) {
         const data = res.data as { message: string; conversationId: string };
         if (data.conversationId) setConversationId(data.conversationId);
@@ -411,7 +419,7 @@ export function Home() {
         <div style={{
           width: '100%',
           maxWidth: 500,
-          flex: 1,
+          height: '100%',
           display: 'flex',
           flexDirection: 'column',
           zIndex: 10,
@@ -423,7 +431,10 @@ export function Home() {
             overflowY: 'auto',
             overflowX: 'hidden',
             padding: '16px 0',
-            minHeight: 100,
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-end',
           }}>
             {messages.length === 0 && (
               <p style={{
