@@ -10,3 +10,6 @@ coverage/
 .vite/
 *.db
 *.db-journal
+
+# Confidential docs
+MONETIZATION.md

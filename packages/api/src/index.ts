@@ -46,6 +46,7 @@ import {
   ToolExecutor,
   webSearchSkill,
   httpRequestSkill,
+  firecrawlSkill,
   WorkflowEngine,
   GitSkill,
   ScriptSkill,
@@ -98,6 +99,7 @@ async function main() {
 
   skillRegistry.register(webSearchSkill);
   skillRegistry.register(httpRequestSkill);
+  skillRegistry.register(firecrawlSkill);
   skillRegistry.register(new GitSkill('./data/workspaces'));
   skillRegistry.register(new ScriptSkill('./data/workspaces'));
   skillRegistry.register({

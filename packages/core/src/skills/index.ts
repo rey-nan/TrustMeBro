@@ -11,3 +11,4 @@ export { createMemoryToolsSkill } from './builtin/memory-tools.js';
 export { codeRunnerSkill } from './builtin/code-runner.js';
 export { GitSkill } from './builtin/git-skill.js';
 export { ScriptSkill } from './builtin/script-skill.js';
+export { firecrawlSkill } from './builtin/firecrawl.js';
