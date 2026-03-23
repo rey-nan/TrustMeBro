@@ -6,6 +6,7 @@ const logger = pino({ name: 'FirecrawlSkill' });
 // ═══════════════════════════════════════════════════════════
 // Firecrawl Skill for TrustMeBro
 // Supports: self-hosted (FIRECRAWL_API_URL) or cloud (FIRECRAWL_API_KEY)
+// Freedom: HIGH - Agents can search, scrape, crawl, extract freely
 // ═══════════════════════════════════════════════════════════
 
 function getApiUrl(): string {
@@ -452,5 +453,26 @@ export const firecrawlSkill: Skill = {
   id: 'firecrawl',
   name: 'Firecrawl Web',
   description: 'Web search, scraping, crawling, and data extraction using Firecrawl (self-hosted or cloud)',
+  category: 'Web & Search',
+  tags: ['web', 'search', 'scrape', 'crawl', 'extract', 'internet', 'firecrawl'],
+  freedom: 'high',
+  requires: ['FIRECRAWL_API_URL or FIRECRAWL_API_KEY'],
+  examples: [
+    {
+      input: 'Search for latest AI news',
+      output: 'List of news articles with titles, URLs, and descriptions',
+      description: 'Use firecrawl_search to find real web results',
+    },
+    {
+      input: 'Extract pricing from https://example.com/pricing',
+      output: 'Clean markdown content of the pricing page',
+      description: 'Use firecrawl_scrape to extract specific page content',
+    },
+    {
+      input: 'Analyze entire documentation site',
+      output: 'Content from multiple pages of the site',
+      description: 'Use firecrawl_crawl to extract content from multiple pages',
+    },
+  ],
   tools: [firecrawlSearchTool, firecrawlScrapeTool, firecrawlCrawlTool, firecrawlExtractTool],
 };

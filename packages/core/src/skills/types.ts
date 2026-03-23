@@ -28,11 +28,24 @@ export interface Tool {
   execute(input: ToolInput): Promise<ToolOutput>;
 }
 
+export interface SkillExample {
+  input: string;
+  output: string;
+  description: string;
+}
+
+export type SkillFreedom = 'low' | 'medium' | 'high';
+
 export interface Skill {
   id: string;
   name: string;
   description: string;
   tools: Tool[];
+  category?: string;
+  tags?: string[];
+  examples?: SkillExample[];
+  freedom?: SkillFreedom;
+  requires?: string[];
   setup?(): Promise<void>;
   teardown?(): Promise<void>;
 }

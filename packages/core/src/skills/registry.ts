@@ -133,4 +133,48 @@ ${toolDescriptions}`;
       }
     }
   }
+
+  // ═══════════════════════════════════════════════════════════
+  // Skill Discovery (Progressive Disclosure)
+  // ═══════════════════════════════════════════════════════════
+
+  listByCategory(): Record<string, Skill[]> {
+    const categories: Record<string, Skill[]> = {};
+    for (const skill of this.skills.values()) {
+      const category = skill.category || 'Other';
+      if (!categories[category]) {
+        categories[category] = [];
+      }
+      categories[category].push(skill);
+    }
+    return categories;
+  }
+
+  searchByTag(tag: string): Skill[] {
+    const lower = tag.toLowerCase();
+    return this.list().filter(
+      (s) => s.tags?.some((t) => t.toLowerCase().includes(lower))
+    );
+  }
+
+  getCategories(): string[] {
+    return [...new Set(this.list().map((s) => s.category || 'Other'))];
+  }
+
+  getSkillSummary(skillId: string): { id: string; name: string; description: string; category: string; toolCount: number } | null {
+    const skill = this.skills.get(skillId);
+    if (!skill) return null;
+    return {
+      id: skill.id,
+      name: skill.name,
+      description: skill.description,
+      category: skill.category || 'Other',
+      toolCount: skill.tools.length,
+    };
+  }
+
+  getSkillWithExamples(skillId: string): Skill | null {
+    const skill = this.skills.get(skillId);
+    return skill || null;
+  }
 }
