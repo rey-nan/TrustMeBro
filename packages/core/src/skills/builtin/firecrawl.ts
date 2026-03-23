@@ -39,7 +39,10 @@ function isConfigured(): boolean {
 
 async function searchImpl(query: string, limit: number = 5, scrapeContent: boolean = false): Promise<ToolOutput> {
   if (!isConfigured()) {
-    return { success: false, error: 'Firecrawl not configured. Set FIRECRAWL_API_URL (self-hosted) or FIRECRAWL_API_KEY (cloud) in .env' };
+    return {
+      success: false,
+      error: `Firecrawl not installed. To enable web search:\n\n1. Install Firecrawl:\n   git clone https://github.com/firecrawl/firecrawl.git\n   cd firecrawl && docker compose up\n\n2. Add to .env:\n   FIRECRAWL_API_URL=http://localhost:3002\n\n3. Restart TrustMeBro`,
+    };
   }
 
   try {
@@ -103,7 +106,10 @@ async function searchImpl(query: string, limit: number = 5, scrapeContent: boole
 
 async function scrapeImpl(url: string, formats: string[] = ['markdown']): Promise<ToolOutput> {
   if (!isConfigured()) {
-    return { success: false, error: 'Firecrawl not configured.' };
+    return {
+      success: false,
+      error: `Firecrawl not installed. Run:\n  git clone https://github.com/firecrawl/firecrawl.git\n  cd firecrawl && docker compose up\nThen add FIRECRAWL_API_URL=http://localhost:3002 to .env`,
+    };
   }
 
   try {
@@ -163,7 +169,10 @@ async function scrapeImpl(url: string, formats: string[] = ['markdown']): Promis
 
 async function crawlImpl(url: string, limit: number = 10, maxDepth: number = 2): Promise<ToolOutput> {
   if (!isConfigured()) {
-    return { success: false, error: 'Firecrawl not configured.' };
+    return {
+      success: false,
+      error: `Firecrawl not installed. Run:\n  git clone https://github.com/firecrawl/firecrawl.git\n  cd firecrawl && docker compose up\nThen add FIRECRAWL_API_URL=http://localhost:3002 to .env`,
+    };
   }
 
   try {
@@ -251,7 +260,10 @@ async function crawlImpl(url: string, limit: number = 10, maxDepth: number = 2):
 
 async function extractImpl(urls: string[], prompt: string, schema?: Record<string, unknown>): Promise<ToolOutput> {
   if (!isConfigured()) {
-    return { success: false, error: 'Firecrawl not configured.' };
+    return {
+      success: false,
+      error: `Firecrawl not installed. Run:\n  git clone https://github.com/firecrawl/firecrawl.git\n  cd firecrawl && docker compose up\nThen add FIRECRAWL_API_URL=http://localhost:3002 to .env`,
+    };
   }
 
   try {

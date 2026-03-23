@@ -1166,7 +1166,6 @@ export function createSetupCommand(): Command {
         ALLOWED_ORIGINS: 'http://localhost:5173',
         DB_PATH: './data/trustmebro.db',
         SANDBOX_TYPE: 'docker',
-        FIRECRAWL_API_URL: 'http://localhost:3002',
       });
       spinnerSave.succeed('Configuration saved!');
     } catch {
