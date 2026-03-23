@@ -29,6 +29,28 @@ const DEPT_COLORS: Record<string, string> = {
   default: '#ff887c',
 };
 
+// Simple markdown renderer
+function renderMarkdown(text: string): string {
+  return text
+    // Code blocks
+    .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre style="background:#131313;padding:8px;border-radius:4px;margin:8px 0;overflow-x:auto;font-size:12px"><code>$2</code></pre>')
+    // Inline code
+    .replace(/`([^`]+)`/g, '<code style="background:#131313;padding:2px 4px;border-radius:3px;font-size:12px">$1</code>')
+    // Headers
+    .replace(/^### (.+)$/gm, '<div style="font-weight:bold;font-size:14px;margin:8px 0 4px">$1</div>')
+    .replace(/^## (.+)$/gm, '<div style="font-weight:bold;font-size:15px;margin:10px 0 4px">$1</div>')
+    .replace(/^# (.+)$/gm, '<div style="font-weight:bold;font-size:16px;margin:12px 0 4px">$1</div>')
+    // Bold
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    // Italic
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    // Lists
+    .replace(/^- (.+)$/gm, '<div style="padding-left:12px">• $1</div>')
+    .replace(/^\d+\. (.+)$/gm, '<div style="padding-left:12px">$&</div>')
+    // Line breaks
+    .replace(/\n/g, '<br>');
+}
+
 interface Agent {
   id: string;
   name: string;
@@ -399,9 +421,9 @@ export function Home() {
                   color: colors.onSurface,
                   fontSize: 13,
                   lineHeight: 1.5,
-                }}>
-                  {msg.content}
-                </div>
+                }}
+                dangerouslySetInnerHTML={{ __html: msg.role === 'user' ? msg.content : renderMarkdown(msg.content) }}
+                />
               </div>
             ))}
 

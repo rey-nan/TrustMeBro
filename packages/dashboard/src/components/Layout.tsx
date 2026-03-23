@@ -246,7 +246,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
         borderTop: `0.5px solid ${styles.primary}10`,
-        padding: '12px 16px 28px',
+        padding: '6px 16px 12px',
         zIndex: 100,
       }}>
         <div style={{
