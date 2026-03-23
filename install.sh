@@ -65,7 +65,7 @@ check_git() {
 }
 
 install_trustmebro() {
-  INSTALL_DIR="$HOME/TrustMeBro"
+  INSTALL_DIR="$(pwd)/TrustMeBro"
   if [ -d "$INSTALL_DIR" ]; then
     echo ""
     echo -e "${YELLOW}TrustMeBro already exists at $INSTALL_DIR${NC}"
