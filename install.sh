@@ -104,6 +104,10 @@ build_and_setup() {
 check_node
 check_git
 install_trustmebro
+
+# Save the project root directory
+PROJECT_DIR="$(pwd)"
+
 build_and_setup
 
 echo -e "${BOLD}=======================================${NC}"
@@ -114,4 +118,5 @@ echo ""
 echo "Starting setup wizard..."
 echo ""
 
+cd "$PROJECT_DIR"
 node packages/cli/dist/index.js setup
