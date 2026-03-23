@@ -416,7 +416,6 @@ export function Home() {
           flexDirection: 'column',
           zIndex: 10,
           animation: 'slideUp 0.4s ease',
-          paddingBottom: 80,
         }}>
           {/* Messages - scrollable */}
           <div style={{
@@ -483,12 +482,16 @@ export function Home() {
             )}
           </div>
 
-          {/* Input */}
+          {/* Input - fixed at bottom */}
           <div style={{
             display: 'flex',
             gap: 8,
             padding: '12px 0',
             borderTop: `1px solid ${colors.primary}15`,
+            position: 'sticky',
+            bottom: 0,
+            background: colors.surface,
+            zIndex: 20,
           }}>
             <input
               value={input}
