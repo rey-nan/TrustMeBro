@@ -22,38 +22,64 @@ const fonts = {
 };
 
 const AGENT_EMOJIS = ['🔍', '💻', '📝', '📊', '🧪', '🎨', '🔬', '📡', '🛠️', '🤖'];
-const AGENT_COLORS = [colors.green, colors.purple, colors.primary, '#ff887c', '#fbd75b', '#ffb878'];
+const DEPT_COLORS: Record<string, string> = {
+  research: colors.green,
+  development: colors.purple,
+  content: colors.primary,
+  default: '#ff887c',
+};
 
 interface Agent {
   id: string;
   name: string;
   status?: string;
+  department?: string;
+}
+
+interface Department {
+  id: string;
+  name: string;
+  color?: string;
 }
 
 export function Home() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
 
   useEffect(() => {
-    loadAgents();
+    loadData();
   }, []);
 
-  const loadAgents = async () => {
+  const loadData = async () => {
     try {
-      const res = await api.get('/api/agents');
-      if (res.success && res.data) {
-        setAgents(res.data as Agent[]);
-      }
-    } catch (err) {
-      // Silently fail - agents list will be empty
-    }
+      const [agentsRes, deptsRes] = await Promise.all([
+        api.get('/api/agents'),
+        api.get('/api/departments'),
+      ]);
+      if (agentsRes.success && agentsRes.data) setAgents(agentsRes.data as Agent[]);
+      if (deptsRes.success && deptsRes.data) setDepartments(deptsRes.data as Department[]);
+    } catch {}
   };
 
-  // Assign emoji and color based on index
-  const getAgentStyle = (index: number) => ({
-    emoji: AGENT_EMOJIS[index % AGENT_EMOJIS.length],
-    color: AGENT_COLORS[index % AGENT_COLORS.length],
+  // Group agents by department
+  const groupedAgents: Record<string, Agent[]> = {};
+  agents.forEach((agent) => {
+    const dept = agent.department || 'ungrouped';
+    if (!groupedAgents[dept]) groupedAgents[dept] = [];
+    groupedAgents[dept].push(agent);
   });
+
+  const getDeptColor = (deptId: string) => {
+    const dept = departments.find((d) => d.id === deptId);
+    return dept?.color || DEPT_COLORS[deptId] || DEPT_COLORS.default;
+  };
+
+  const getDeptName = (deptId: string) => {
+    if (deptId === 'ungrouped') return 'Agents';
+    const dept = departments.find((d) => d.id === deptId);
+    return dept?.name || deptId;
+  };
 
   return (
     <div style={{
@@ -67,7 +93,7 @@ export function Home() {
       {/* Ambient Glow - Large background pulse */}
       <div className="ambient-glow" style={{
         position: 'absolute',
-        top: '25%',
+        top: '20%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
         width: 500,
@@ -78,51 +104,49 @@ export function Home() {
       }} />
 
       {/* Secondary glow rings */}
-      <div style={{
+      <div className="ring-pulse" style={{
         position: 'absolute',
-        top: '25%',
+        top: '20%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
         width: 350,
         height: 350,
         borderRadius: '50%',
-        border: `1px solid ${colors.primary}08`,
-        animation: 'ringPulse 4s ease-in-out infinite',
+        border: `1px solid ${colors.primary}10`,
         pointerEvents: 'none',
       }} />
-      <div style={{
+      <div className="ring-pulse-delay" style={{
         position: 'absolute',
-        top: '25%',
+        top: '20%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
         width: 280,
         height: 280,
         borderRadius: '50%',
-        border: `1px solid ${colors.primary}05`,
-        animation: 'ringPulse 4s ease-in-out infinite 1s',
+        border: `1px solid ${colors.primary}08`,
         pointerEvents: 'none',
       }} />
 
-      {/* Meta-Agent Eye with Sprite */}
+      {/* Meta-Agent Eye */}
       <div
         onClick={() => setIsSpeaking(!isSpeaking)}
         style={{
-          marginTop: 50,
+          marginTop: 30,
           cursor: 'pointer',
           position: 'relative',
           zIndex: 10,
         }}
       >
-        {/* Outer glow ring */}
-        <div style={{
+        {/* Outer pulsing glow */}
+        <div className="eye-outer-glow" style={{
           position: 'absolute',
-          top: -20,
-          left: -20,
-          right: -20,
-          bottom: -20,
+          top: -30,
+          left: -30,
+          right: -30,
+          bottom: -30,
           borderRadius: '50%',
-          border: `1px solid ${colors.primary}15`,
-          animation: 'outerRing 6s ease-in-out infinite',
+          background: `radial-gradient(circle, ${colors.primary}15 0%, transparent 70%)`,
+          pointerEvents: 'none',
         }} />
 
         {/* Eye Sprite Container */}
@@ -135,8 +159,6 @@ export function Home() {
           borderRadius: '50%',
           WebkitMaskImage: 'radial-gradient(circle, black 40%, transparent 70%)',
           maskImage: 'radial-gradient(circle, black 40%, transparent 70%)',
-          boxShadow: `0 0 60px ${colors.primary}25, 0 0 120px ${colors.primary}10`,
-          animation: 'eyeLife 12s steps(1) infinite',
         }} />
       </div>
 
@@ -145,7 +167,7 @@ export function Home() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        marginTop: 16,
+        marginTop: 8,
         zIndex: 10,
       }}>
         <h2 style={{
@@ -159,125 +181,165 @@ export function Home() {
         }}>
           META
         </h2>
-
-        {/* Speaking Indicator */}
-        {isSpeaking && (
-          <div style={{
-            marginTop: 16,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 8,
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'flex-end',
-              height: 32,
-              gap: 4,
-            }}>
-              {[3, 6, 4, 7, 5].map((h, i) => (
-                <div
-                  key={i}
-                  style={{
-                    width: 3,
-                    height: h * 4,
-                    backgroundColor: colors.primary,
-                    borderRadius: 4,
-                    opacity: 0.9,
-                    boxShadow: `0 0 10px ${colors.primary}80`,
-                    animation: `waveBar ${0.8 + i * 0.1}s infinite`,
-                  }}
-                />
-              ))}
-            </div>
-            <p style={{
-              fontFamily: fonts.display,
-              fontSize: 9,
-              color: `${colors.primary}50`,
-              letterSpacing: '0.6em',
-              textTransform: 'uppercase',
-              margin: 0,
-            }}>
-              Speaking...
-            </p>
-          </div>
-        )}
       </div>
 
-      {/* Agent Avatars Grid - Real data */}
-      {agents.length > 0 && (
+      {/* Small animated graph below eye */}
+      <div className="activity-graph" style={{
+        display: 'flex',
+        alignItems: 'flex-end',
+        gap: 2,
+        height: 24,
+        marginTop: 12,
+        zIndex: 10,
+        opacity: 0.4,
+      }}>
+        {Array.from({ length: 20 }).map((_, i) => (
+          <div
+            key={i}
+            className="graph-bar"
+            style={{
+              width: 2,
+              height: `${20 + Math.random() * 80}%`,
+              background: colors.primary,
+              borderRadius: 1,
+              animation: `graphPulse ${1 + Math.random() * 2}s ease-in-out infinite`,
+              animationDelay: `${i * 0.1}s`,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Speaking Indicator */}
+      {isSpeaking && (
         <div style={{
-          marginTop: 50,
-          width: '100%',
-          maxWidth: 300,
+          marginTop: 16,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 8,
           zIndex: 10,
         }}>
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${Math.min(agents.length, 4)}, 1fr)`,
-            gap: 28,
-            justifyItems: 'center',
+            display: 'flex',
+            alignItems: 'flex-end',
+            height: 32,
+            gap: 4,
           }}>
-            {agents.map((agent, index) => {
-              const style = getAgentStyle(index);
-              const isActive = agent.status !== 'idle';
-              return (
-                <div
-                  key={agent.id}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    opacity: isActive ? 1 : 0.35,
-                    transition: 'all 0.3s ease',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {/* Avatar Circle */}
-                  <div style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: '50%',
-                    background: isActive ? colors.surfaceCard : `${colors.surfaceCard}60`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 24,
-                    border: isActive ? `1px solid ${style.color}40` : `1px solid ${colors.onSurfaceDim}15`,
-                    boxShadow: isActive ? `0 0 20px ${style.color}30` : 'none',
-                  }}>
-                    {style.emoji}
-                  </div>
-
-                  {/* Name */}
-                  <span style={{
-                    fontFamily: fonts.display,
-                    fontSize: 9,
-                    color: isActive ? colors.onSurfaceDim : `${colors.onSurfaceDim}60`,
-                    marginTop: 8,
-                    textAlign: 'center',
-                    maxWidth: 70,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}>
-                    {agent.name}
-                  </span>
-
-                  {/* Status Dot */}
-                  <div style={{
-                    width: 5,
-                    height: 5,
-                    borderRadius: '50%',
-                    background: isActive ? colors.green : `${colors.onSurfaceDim}25`,
-                    marginTop: 4,
-                    animation: isActive ? 'pulse 2s infinite' : 'none',
-                    boxShadow: isActive ? `0 0 6px ${colors.green}60` : 'none',
-                  }} />
-                </div>
-              );
-            })}
+            {[3, 6, 4, 7, 5].map((h, i) => (
+              <div
+                key={i}
+                style={{
+                  width: 3,
+                  height: h * 4,
+                  backgroundColor: colors.primary,
+                  borderRadius: 4,
+                  opacity: 0.9,
+                  boxShadow: `0 0 10px ${colors.primary}80`,
+                  animation: `waveBar ${0.8 + i * 0.1}s infinite`,
+                }}
+              />
+            ))}
           </div>
+          <p style={{
+            fontFamily: fonts.display,
+            fontSize: 9,
+            color: `${colors.primary}50`,
+            letterSpacing: '0.6em',
+            textTransform: 'uppercase',
+            margin: 0,
+          }}>
+            Speaking...
+          </p>
+        </div>
+      )}
+
+      {/* Agent Avatars Grouped by Department */}
+      {agents.length > 0 && (
+        <div style={{
+          marginTop: 40,
+          width: '100%',
+          maxWidth: 340,
+          zIndex: 10,
+        }}>
+          {Object.entries(groupedAgents).map(([deptId, deptAgents]) => (
+            <div key={deptId} style={{ marginBottom: 24 }}>
+              {/* Department label */}
+              <p style={{
+                fontFamily: fonts.display,
+                fontSize: 9,
+                color: getDeptColor(deptId),
+                textTransform: 'uppercase',
+                letterSpacing: '0.15em',
+                marginBottom: 12,
+                textAlign: 'center',
+                opacity: 0.7,
+              }}>
+                {getDeptName(deptId)}
+              </p>
+
+              {/* Agents in this department */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${Math.min(deptAgents.length, 4)}, 1fr)`,
+                gap: 20,
+                justifyItems: 'center',
+              }}>
+                {deptAgents.map((agent, index) => {
+                  const isActive = agent.status !== 'idle';
+                  const emoji = AGENT_EMOJIS[index % AGENT_EMOJIS.length];
+                  const accentColor = getDeptColor(deptId);
+
+                  return (
+                    <div
+                      key={agent.id}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        opacity: isActive ? 1 : 0.35,
+                      }}
+                    >
+                      <div style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: '50%',
+                        background: isActive ? colors.surfaceCard : `${colors.surfaceCard}60`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 20,
+                        border: isActive ? `1px solid ${accentColor}40` : `1px solid ${colors.onSurfaceDim}15`,
+                        boxShadow: isActive ? `0 0 15px ${accentColor}25` : 'none',
+                      }}>
+                        {emoji}
+                      </div>
+                      <span style={{
+                        fontFamily: fonts.display,
+                        fontSize: 8,
+                        color: isActive ? colors.onSurfaceDim : `${colors.onSurfaceDim}50`,
+                        marginTop: 6,
+                        maxWidth: 60,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {agent.name}
+                      </span>
+                      <div style={{
+                        width: 4,
+                        height: 4,
+                        borderRadius: '50%',
+                        background: isActive ? colors.green : `${colors.onSurfaceDim}20`,
+                        marginTop: 3,
+                        animation: isActive ? 'pulse 2s infinite' : 'none',
+                        boxShadow: isActive ? `0 0 4px ${colors.green}50` : 'none',
+                      }} />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -296,11 +358,30 @@ export function Home() {
         }
 
         .meta-eye-sprite {
+          animation: eyeLife 12s steps(1) infinite, eyeGlow 4s ease-in-out infinite;
           transition: box-shadow 0.3s ease;
         }
 
         .meta-eye-sprite:hover {
-          box-shadow: 0 0 80px rgba(0, 242, 255, 0.35), 0 0 150px rgba(0, 242, 255, 0.15) !important;
+          filter: brightness(1.2);
+        }
+
+        @keyframes eyeGlow {
+          0%, 100% {
+            box-shadow: 0 0 40px rgba(0, 242, 255, 0.15), 0 0 80px rgba(0, 242, 255, 0.05);
+          }
+          50% {
+            box-shadow: 0 0 70px rgba(0, 242, 255, 0.3), 0 0 140px rgba(0, 242, 255, 0.1);
+          }
+        }
+
+        .eye-outer-glow {
+          animation: outerGlowPulse 4s ease-in-out infinite;
+        }
+
+        @keyframes outerGlowPulse {
+          0%, 100% { opacity: 0.4; transform: scale(1); }
+          50% { opacity: 0.9; transform: scale(1.05); }
         }
 
         .ambient-glow {
@@ -308,43 +389,37 @@ export function Home() {
         }
 
         @keyframes ambientPulse {
-          0%, 100% { 
-            opacity: 0.6;
-            transform: translate(-50%, -50%) scale(1);
-          }
-          50% { 
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1.1);
-          }
+          0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+          50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+        }
+
+        .ring-pulse {
+          animation: ringPulse 4s ease-in-out infinite;
+        }
+
+        .ring-pulse-delay {
+          animation: ringPulse 4s ease-in-out infinite 1s;
         }
 
         @keyframes ringPulse {
-          0%, 100% { 
-            opacity: 0.3;
-            transform: translate(-50%, -50%) scale(1);
-          }
-          50% { 
-            opacity: 0.8;
-            transform: translate(-50%, -50%) scale(1.05);
-          }
+          0%, 100% { opacity: 0.2; transform: translate(-50%, -50%) scale(1); }
+          50% { opacity: 0.7; transform: translate(-50%, -50%) scale(1.05); }
         }
 
-        @keyframes outerRing {
-          0%, 100% { 
-            opacity: 0.2;
-            transform: scale(1);
-          }
-          50% { 
-            opacity: 0.6;
-            transform: scale(1.02);
-          }
+        .graph-bar {
+          animation: graphPulse 2s ease-in-out infinite;
         }
-        
+
+        @keyframes graphPulse {
+          0%, 100% { opacity: 0.3; transform: scaleY(0.6); }
+          50% { opacity: 0.8; transform: scaleY(1); }
+        }
+
         @keyframes pulse {
           0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
+          50% { opacity: 0.3; }
         }
-        
+
         @keyframes waveBar {
           0%, 100% { transform: scaleY(1); }
           50% { transform: scaleY(1.5); }
