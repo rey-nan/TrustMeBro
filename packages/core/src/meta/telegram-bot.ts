@@ -85,14 +85,22 @@ export class TelegramBot {
     while (this.polling) {
       try {
         const url = `https://api.telegram.org/bot${this.config.botToken}/getUpdates?offset=${this.lastUpdateId + 1}&timeout=30`;
-        logger.info('Polling for updates...');
-        
+
         const response = await fetch(url, { signal: AbortSignal.timeout(35000) });
         const data: any = await response.json();
 
+        // Check for auth errors - stop polling
+        if (data.ok === false && data.error_code === 401) {
+          logger.error('Telegram bot token is invalid (401). Stopping polling. Run: tmb setup --telegram');
+          this.polling = false;
+          return;
+        }
+
         if (data.ok && data.result) {
-          logger.info({ count: data.result.length }, 'Received updates');
-          
+          if (data.result.length > 0) {
+            logger.info({ count: data.result.length }, 'Received updates');
+          }
+
           for (const update of data.result as TelegramUpdate[]) {
             this.lastUpdateId = update.update_id;
 
@@ -100,7 +108,6 @@ export class TelegramBot {
               const msgChatId = update.message.chat.id.toString();
               logger.info({ chatId: msgChatId, text: update.message.text }, 'Processing message');
               
-              // Only process messages from configured chat
               if (msgChatId === this.config.chatId) {
                 await this.handleMessage(msgChatId, update.message.text);
               } else {
@@ -108,13 +115,11 @@ export class TelegramBot {
               }
             }
           }
-        } else {
-          logger.warn({ data }, 'Unexpected response from Telegram');
         }
       } catch (err: any) {
         if (!err.message?.includes('timeout')) {
           logger.error({ err: err.message }, 'Telegram polling error');
-          await new Promise(r => setTimeout(r, 5000));
+          await new Promise(r => setTimeout(r, 10000));
         }
       }
     }
