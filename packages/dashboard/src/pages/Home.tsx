@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '../api/client';
 
 // ═══════════════════════════════════════════════════════════
@@ -97,10 +97,22 @@ export function Home() {
   const [conversationId, setConversationId] = useState<string | undefined>(() => {
     return localStorage.getItem('meta-chat-conversation') || undefined;
   });
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollTop = messagesEndRef.current.scrollHeight;
+    }
+  };
 
   useEffect(() => {
     loadData();
   }, []);
+
+  // Auto-scroll when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isThinking]);
 
   // Persist messages to localStorage
   useEffect(() => {
@@ -133,6 +145,8 @@ export function Home() {
       .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/gi, '')
       .replace(/<apicall>[\s\S]*?<\/apicall>/gi, '')
       .replace(/<api_call>[\s\S]*?<\/api_call>/gi, '')
+      .replace(/<api_result>[\s\S]*?<\/api_result>/gi, '')
+      .replace(/<api_error>[\s\S]*?<\/api_error>/gi, '')
       .replace(/<[^>]*>/g, '')
       .trim();
 
@@ -146,7 +160,18 @@ export function Home() {
       if (res.success && res.data) {
         const data = res.data as { message: string; conversationId: string };
         if (data.conversationId) setConversationId(data.conversationId);
-        const assistantMsg: Message = { role: 'assistant', content: data.message };
+        
+        // Clean assistant message from system tags
+        const cleanMessage = data.message
+          .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/gi, '')
+          .replace(/<apicall>[\s\S]*?<\/apicall>/gi, '')
+          .replace(/<api_call>[\s\S]*?<\/api_call>/gi, '')
+          .replace(/<api_result>[\s\S]*?<\/api_result>/gi, '')
+          .replace(/<api_error>[\s\S]*?<\/api_error>/gi, '')
+          .replace(/<[^>]*>/g, '')
+          .trim();
+
+        const assistantMsg: Message = { role: 'assistant', content: cleanMessage };
         setMessages((prev) => [...prev, assistantMsg]);
       }
     } catch {
@@ -426,15 +451,11 @@ export function Home() {
           animation: 'slideUp 0.4s ease',
         }}>
           {/* Messages - scrollable */}
-          <div style={{
+          <div ref={messagesEndRef} style={{
             flex: 1,
-            overflowY: 'auto',
+            overflowY: 'scroll',
             overflowX: 'hidden',
-            padding: '16px 0',
-            minHeight: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'flex-end',
+            padding: '16px 8px 16px 0',
           }}>
             {messages.length === 0 && (
               <p style={{
@@ -453,21 +474,24 @@ export function Home() {
               <div
                 key={i}
                 style={{
-                  marginBottom: 16,
+                  marginBottom: 12,
                   display: 'flex',
                   justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
                 }}
               >
                 <div style={{
-                  maxWidth: '80%',
+                  maxWidth: '85%',
                   padding: '10px 14px',
                   borderRadius: msg.role === 'user' ? '12px 12px 0 12px' : '12px 12px 12px 0',
                   background: msg.role === 'user' ? `${colors.primary}20` : colors.surfaceCard,
                   color: colors.onSurface,
                   fontSize: 13,
                   lineHeight: 1.5,
+                  wordBreak: 'break-word',
                 }}
-                dangerouslySetInnerHTML={{ __html: msg.role === 'user' ? msg.content : renderMarkdown(msg.content) }}
+                dangerouslySetInnerHTML={{ 
+                  __html: renderMarkdown(msg.role === 'user' ? msg.content : msg.content) 
+                }}
                 />
               </div>
             ))}
@@ -499,10 +523,7 @@ export function Home() {
             gap: 8,
             padding: '12px 0',
             borderTop: `1px solid ${colors.primary}15`,
-            position: 'sticky',
-            bottom: 0,
             background: colors.surface,
-            zIndex: 20,
           }}>
             <input
               value={input}
