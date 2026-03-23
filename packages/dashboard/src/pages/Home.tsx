@@ -442,13 +442,17 @@ export function Home() {
           ═══════════════════════════════════════════════════════ */}
       {isOpen && (
         <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
           width: '100%',
-          maxWidth: 500,
-          height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          zIndex: 10,
+          zIndex: 100,
           animation: 'slideUp 0.4s ease',
+          background: colors.surface,
         }}>
           {/* Messages - scrollable */}
           <div ref={messagesEndRef} style={{
@@ -524,6 +528,7 @@ export function Home() {
             padding: '12px 0',
             borderTop: `1px solid ${colors.primary}15`,
             background: colors.surface,
+            flexShrink: 0,
           }}>
             <input
               value={input}
