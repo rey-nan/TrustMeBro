@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import pino from 'pino';
-import type { MetaAgentConfig, MetaAction, MetaConversation, MetaMessage, MetaResponse } from './types.js';
+import type { MetaAgentConfig, MetaAction, MetaConversation, MetaMessage, MetaResponse, UserProfile } from './types.js';
 
 const logger = pino({ name: 'MetaAgent' });
 
@@ -241,7 +241,10 @@ Use JSON blocks to call the API. You are the central orchestrator.
 6. Anticipate problems before they happen
 7. Explain what you did in plain language
 8. Never expose API keys
-9. Be yourself — honest, slightly chaotic, genuinely helpful`;
+9. Be yourself — honest, slightly chaotic, genuinely helpful
+10. On first interaction, introduce yourself and ask the user's name
+11. Remember user preferences and use their name naturally
+12. Build a relationship over time — you're not just a tool, you're a partner`;
 
 // Load user extras from meta-config.json or .env
 function loadUserExtras(): string {
@@ -281,7 +284,35 @@ export class MetaAgent {
     this.config = config;
     this.apiBaseUrl = apiBaseUrl;
     this.dataPath = path.join('./data', 'meta-conversations.json');
+    this.userProfilePath = path.join('./data', 'user-profile.json');
     this.loadConversations();
+    this.loadUserProfile();
+  }
+
+  private userProfilePath: string;
+  private userProfile: UserProfile = { name: '', preferences: {}, firstInteraction: true };
+
+  private loadUserProfile(): void {
+    try {
+      if (fs.existsSync(this.userProfilePath)) {
+        this.userProfile = JSON.parse(fs.readFileSync(this.userProfilePath, 'utf-8'));
+        logger.info({ name: this.userProfile.name }, 'User profile loaded');
+      }
+    } catch (error) {
+      logger.error({ error }, 'Failed to load user profile');
+    }
+  }
+
+  private saveUserProfile(): void {
+    try {
+      const dir = path.dirname(this.userProfilePath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.writeFileSync(this.userProfilePath, JSON.stringify(this.userProfile, null, 2));
+    } catch (error) {
+      logger.error({ error }, 'Failed to save user profile');
+    }
   }
 
   private loadConversations(): void {
@@ -404,6 +435,26 @@ export class MetaAgent {
   async chat(userMessage: string, conversationId?: string): Promise<MetaResponse> {
     const conv = this.getOrCreateConversation(conversationId);
 
+    // Check if this is first interaction and extract user name
+    if (this.userProfile.firstInteraction) {
+      // Try to detect name from first message
+      const namePatterns = [
+        /(?:meu nome é|me chamo|sou o|sou a|eu sou) (\w+)/i,
+        /(?:call me|my name is|i'm|i am) (\w+)/i,
+        /^(\w+)$/i,  // Single word might be a name
+      ];
+      
+      for (const pattern of namePatterns) {
+        const match = userMessage.match(pattern);
+        if (match && match[1] && match[1].length > 1 && match[1].length < 20) {
+          this.userProfile.name = match[1];
+          this.userProfile.firstInteraction = false;
+          this.saveUserProfile();
+          break;
+        }
+      }
+    }
+
     // Add user message
     conv.messages.push({
       role: 'user',
@@ -411,9 +462,22 @@ export class MetaAgent {
       timestamp: Date.now(),
     });
 
-    // Build messages for LLM: BASE SOUL + USER EXTRAS
+    // Build messages for LLM: BASE SOUL + USER EXTRAS + USER PROFILE
+    let systemPrompt = buildFullSystemPrompt();
+    
+    // Add user profile context
+    if (this.userProfile.name) {
+      systemPrompt += `\n\n## USER PROFILE\nUser's name: ${this.userProfile.name}\nUse their name naturally in conversation.`;
+    } else if (this.userProfile.firstInteraction || conv.messages.length <= 2) {
+      systemPrompt += `\n\n## FIRST INTERACTION\nThis is the user's first time. Introduce yourself warmly and ask for their name. Be friendly but not robotic.`;
+    }
+
+    if (Object.keys(this.userProfile.preferences).length > 0) {
+      systemPrompt += `\nUser preferences: ${JSON.stringify(this.userProfile.preferences)}`;
+    }
+
     const llmMessages: { role: string; content: string }[] = [
-      { role: 'system', content: buildFullSystemPrompt() },
+      { role: 'system', content: systemPrompt },
       ...conv.messages.map(m => ({ role: m.role, content: m.content })),
     ];
 

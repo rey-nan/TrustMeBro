@@ -36,3 +36,9 @@ export interface MetaResponse {
   actions: MetaAction[];
   tokensUsed: number;
 }
+
+export interface UserProfile {
+  name: string;
+  preferences: Record<string, string>;
+  firstInteraction: boolean;
+}
