@@ -74,12 +74,32 @@ export function Home() {
   const [isThinking, setIsThinking] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try {
+      const saved = localStorage.getItem('meta-chat-messages');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [input, setInput] = useState('');
+  const [conversationId, setConversationId] = useState<string | undefined>(() => {
+    return localStorage.getItem('meta-chat-conversation') || undefined;
+  });
 
   useEffect(() => {
     loadData();
   }, []);
+
+  // Persist messages to localStorage
+  useEffect(() => {
+    localStorage.setItem('meta-chat-messages', JSON.stringify(messages));
+  }, [messages]);
+
+  // Persist conversationId
+  useEffect(() => {
+    if (conversationId) {
+      localStorage.setItem('meta-chat-conversation', conversationId);
+    }
+  }, [conversationId]);
 
   const loadData = async () => {
     try {
@@ -101,14 +121,15 @@ export function Home() {
     setIsThinking(true);
 
     try {
-      const res = await api.post('/api/meta/chat', { message: input });
+      const res = await api.post('/api/meta/chat', { message: input, conversationId });
       if (res.success && res.data) {
-        const data = res.data as { message: string };
+        const data = res.data as { message: string; conversationId: string };
+        if (data.conversationId) setConversationId(data.conversationId);
         const assistantMsg: Message = { role: 'assistant', content: data.message };
         setMessages((prev) => [...prev, assistantMsg]);
       }
     } catch {
-      const errorMsg: Message = { role: 'assistant', content: 'Error processing message.' };
+      const errorMsg: Message = { role: 'assistant', content: 'Erro ao processar mensagem.' };
       setMessages((prev) => [...prev, errorMsg]);
     }
 
