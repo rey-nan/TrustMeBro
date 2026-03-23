@@ -1,4 +1,4 @@
-import { type ReactNode, useState, useEffect } from 'react';
+import { type ReactNode, useState } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
 
 interface LayoutProps {
@@ -9,119 +9,203 @@ interface LayoutProps {
 
 interface NavItem {
   id: string;
+  icon: string;
   label: string;
   badge?: number;
 }
 
+// ═══════════════════════════════════════════════════════════
+// Design System: The Ethereal Command Center
+// ═══════════════════════════════════════════════════════════
+
+const styles = {
+  // Colors
+  surface: '#131313',
+  surfaceLow: '#0e0e0e',
+  surfaceMid: '#1c1b1b',
+  surfaceHigh: '#2a2a2a',
+  surfaceCard: '#353534',
+  primary: '#00f2ff',
+  primaryDim: '#00dbe7',
+  primaryText: '#e1fdff',
+  onSurface: '#e5e2e1',
+  onSurfaceDim: '#b9cacb',
+  outline: '#3a494b',
+
+  // Fonts
+  display: "'Space Grotesk', sans-serif",
+  body: "'Inter', sans-serif",
+};
+
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const { connected } = useWebSocket();
-  const [navItems, setNavItems] = useState<NavItem[]>([
-    { id: 'meta-agent', label: '🧠 Meta-Agent' },
-    { id: 'dashboard', label: 'Dashboard' },
-    { id: 'agents', label: 'Agents' },
-    { id: 'agent-builder', label: '⚡ Agent Builder' },
-    { id: 'org-chart', label: '🏢 Org Chart' },
-    { id: 'tasks', label: 'Tasks' },
-    { id: 'workflows', label: '🔀 Workflows' },
-    { id: 'skills', label: '⚡ Skills' },
-    { id: 'consumption', label: 'Consumption' },
-    { id: 'settings', label: 'Settings' },
-    { id: 'knowledge-base', label: '🧠 Knowledge Base' },
-    { id: 'activity-feed', label: '📡 Activity Feed' },
-    { id: 'agent-inbox', label: '📬 Agent Inbox' },
+  const [navItems] = useState<NavItem[]>([
+    { id: 'home', icon: 'home', label: 'HOME' },
+    { id: 'agents', icon: 'groups', label: 'AGENTS' },
+    { id: 'teams', icon: 'corporate_fare', label: 'TEAMS' },
+    { id: 'flows', icon: 'account_tree', label: 'FLOWS' },
+    { id: 'more', icon: 'more_horiz', label: 'MORE' },
   ]);
 
-  useEffect(() => {
-    const updateBadges = async () => {
-      const unseen = localStorage.getItem('unseenActivityCount') || '0';
-      const unread = localStorage.getItem('unreadMessagesCount') || '0';
-      
-      setNavItems((prev) =>
-        prev.map((item) => {
-          if (item.id === 'activity-feed') {
-            const count = parseInt(unseen, 10);
-            return { ...item, label: `📡 Activity Feed${count > 0 ? ` (${count})` : ''}` };
-          }
-          if (item.id === 'agent-inbox') {
-            const count = parseInt(unread, 10);
-            return { ...item, label: `📬 Agent Inbox${count > 0 ? ` (${count})` : ''}` };
-          }
-          return item;
-        })
-      );
+  // Map old pages to new sections
+  const getCurrentSection = (): string => {
+    const sectionMap: Record<string, string> = {
+      'home': 'home',
+      'dashboard': 'home',
+      'meta-agent': 'home',
+      'agents': 'agents',
+      'agent-builder': 'agents',
+      'agent-inbox': 'agents',
+      'org-chart': 'teams',
+      'workflows': 'flows',
+      'tasks': 'flows',
+      'skills': 'more',
+      'knowledge-base': 'more',
+      'consumption': 'more',
+      'activity-feed': 'more',
+      'settings': 'more',
     };
+    return sectionMap[currentPage] || 'home';
+  };
 
-    updateBadges();
-    const interval = setInterval(updateBadges, 5000);
-    return () => clearInterval(interval);
-  }, []);
+  const handleNavClick = (sectionId: string) => {
+    // Map sections to default pages
+    const defaultPages: Record<string, string> = {
+      'home': 'home',
+      'agents': 'agents',
+      'teams': 'org-chart',
+      'flows': 'workflows',
+      'more': 'settings',
+    };
+    onNavigate(defaultPages[sectionId] || sectionId);
+  };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <aside style={{
-        width: 220,
-        background: 'var(--bg-secondary)',
-        borderRight: '1px solid var(--border-color)',
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      minHeight: '100vh',
+      background: styles.surface,
+      color: styles.onSurface,
+      fontFamily: styles.body,
+    }}>
+      {/* Header */}
+      <header style={{
         display: 'flex',
-        flexDirection: 'column',
-        padding: '16px',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '16px 24px',
+        position: 'sticky',
+        top: 0,
+        zIndex: 50,
+        background: 'transparent',
       }}>
-        <div style={{ marginBottom: 32 }}>
-          <div style={{
-            fontSize: 20,
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{
+            fontFamily: styles.display,
+            letterSpacing: '0.2em',
+            textTransform: 'uppercase',
+            fontSize: 14,
             fontWeight: 'bold',
-            color: 'var(--green)',
-            marginBottom: 4,
+            color: styles.primaryText,
           }}>
-            TrustMeBro
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-            Not Skynet. Probably.
-          </div>
+            TRUSTMEBRO
+          </span>
         </div>
-
-        <nav style={{ flex: 1 }}>
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => onNavigate(item.id)}
-              style={{
-                display: 'block',
-                width: '100%',
-                textAlign: 'left',
-                padding: '10px 12px',
-                marginBottom: 4,
-                background: currentPage === item.id ? 'var(--bg-primary)' : 'transparent',
-                border: '1px solid',
-                borderColor: currentPage === item.id ? 'var(--green)' : 'transparent',
-                color: currentPage === item.id ? 'var(--green)' : 'var(--text-secondary)',
-              }}
-            >
-              {item.label}
-            </button>
-          ))}
-        </nav>
-
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          fontSize: 12,
-          color: 'var(--text-secondary)',
-        }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          {/* Connection Status */}
           <div style={{
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            background: connected ? 'var(--green)' : 'var(--red)',
-          }} />
-          {connected ? 'Connected' : 'Disconnected'}
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 10,
+            fontFamily: styles.display,
+            letterSpacing: '0.1em',
+            color: connected ? styles.primary : styles.onSurfaceDim,
+            opacity: 0.6,
+          }}>
+            <div style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: connected ? '#4ae176' : '#ff4444',
+              boxShadow: connected ? '0 0 8px rgba(74, 225, 118, 0.5)' : 'none',
+            }} />
+            {connected ? 'LIVE' : 'OFFLINE'}
+          </div>
         </div>
-      </aside>
+      </header>
 
-      <main style={{ flex: 1, padding: 24 }}>
+      {/* Main Content */}
+      <main style={{
+        flex: 1,
+        padding: '0 24px 120px',
+        overflowY: 'auto',
+        position: 'relative',
+      }}>
         {children}
       </main>
+
+      {/* Bottom Navigation */}
+      <nav style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 50,
+        background: `${styles.surfaceMid}cc`,
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderTop: `0.5px solid ${styles.primary}10`,
+        padding: '12px 16px 28px',
+      }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-around',
+          alignItems: 'center',
+          maxWidth: 500,
+          margin: '0 auto',
+        }}>
+          {navItems.map((item) => {
+            const isActive = getCurrentSection() === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleNavClick(item.id)}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 4,
+                  padding: '8px 16px',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: isActive ? styles.primary : `${styles.onSurface}50`,
+                  transition: 'all 0.3s ease',
+                  filter: isActive ? `drop-shadow(0 0 10px ${styles.primary}60)` : 'none',
+                }}
+              >
+                <span className="material-symbols-outlined" style={{
+                  fontSize: 22,
+                  fontVariationSettings: isActive ? "'FILL' 1, 'wght' 400" : "'FILL' 0, 'wght' 400",
+                }}>
+                  {item.icon}
+                </span>
+                <span style={{
+                  fontFamily: styles.display,
+                  fontSize: 9,
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                }}>
+                  {item.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

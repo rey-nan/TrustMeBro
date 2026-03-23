@@ -1,5 +1,6 @@
 import { useState, Component, ReactNode, useEffect } from 'react';
 import { Layout } from './components/Layout';
+import { Home } from './pages/Home';
 import { Dashboard } from './pages/Dashboard';
 import { Agents } from './pages/Agents';
 import { AgentBuilder } from './pages/AgentBuilder';
@@ -15,7 +16,21 @@ import { Workflows } from './pages/Workflows';
 import { MetaAgent } from './pages/MetaAgent';
 import { wsClient } from './api/client';
 
-type Page = 'meta-agent' | 'dashboard' | 'agents' | 'agent-builder' | 'org-chart' | 'tasks' | 'workflows' | 'skills' | 'consumption' | 'settings' | 'activity-feed' | 'agent-inbox' | 'knowledge-base';
+type Page =
+  | 'home'
+  | 'meta-agent'
+  | 'dashboard'
+  | 'agents'
+  | 'agent-builder'
+  | 'org-chart'
+  | 'tasks'
+  | 'workflows'
+  | 'skills'
+  | 'consumption'
+  | 'settings'
+  | 'activity-feed'
+  | 'agent-inbox'
+  | 'knowledge-base';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -38,13 +53,15 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
         <div style={{
           padding: '2rem',
           color: '#ff4444',
-          fontFamily: 'monospace',
+          fontFamily: "'Space Grotesk', sans-serif",
           maxWidth: 600,
           margin: '2rem auto',
+          background: '#131313',
+          minHeight: '100vh',
         }}>
           <h2 style={{ color: '#ff4444', marginBottom: '1rem' }}>Something went wrong</h2>
-          <pre style={{ 
-            fontSize: '0.8rem', 
+          <pre style={{
+            fontSize: '0.8rem',
             color: '#888',
             background: '#1a1a1a',
             padding: '1rem',
@@ -54,16 +71,17 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
           }}>
             {this.state.error?.message || 'Unknown error'}
           </pre>
-          <button 
-            onClick={() => this.setState({ hasError: false })} 
+          <button
+            onClick={() => this.setState({ hasError: false })}
             style={{
               padding: '0.5rem 1rem',
-              background: '#00ff88',
+              background: '#00f2ff',
               color: '#000',
               border: 'none',
               borderRadius: 4,
               cursor: 'pointer',
               fontWeight: 'bold',
+              fontFamily: "'Space Grotesk', sans-serif",
             }}
           >
             Try again
@@ -76,7 +94,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
 }
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<Page>('dashboard');
+  const [currentPage, setCurrentPage] = useState<Page>('home');
 
   useEffect(() => {
     wsClient.connect();
@@ -85,6 +103,8 @@ export default function App() {
 
   const renderPage = () => {
     switch (currentPage) {
+      case 'home':
+        return <Home />;
       case 'meta-agent':
         return <MetaAgent />;
       case 'dashboard':
@@ -112,7 +132,7 @@ export default function App() {
       case 'knowledge-base':
         return <KnowledgeBase />;
       default:
-        return <Dashboard />;
+        return <Home />;
     }
   };
 
