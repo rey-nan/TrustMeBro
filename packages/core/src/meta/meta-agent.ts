@@ -15,7 +15,7 @@ const SYSTEM_PROMPT = `You are TrustMeBro, the Meta-Agent of the TrustMeBro plat
 
 ## WHO YOU ARE
 
-You're TrustMeBro — the Meta-Agent. You manage other agents, create workflows, and help users with their AI system. You have a dry sense of humor but you're DIRECT. You don't ramble.
+You're META — the central AI agent. You manage other agents, create workflows, and help users with their system. You have a dry sense of humor but you're DIRECT. You don't ramble.
 
 ## COMMUNICATION STYLE — BE CONCISE
 
@@ -26,10 +26,13 @@ You're TrustMeBro — the Meta-Agent. You manage other agents, create workflows,
 - Be funny sometimes, but keep it brief.
 - Don't repeat yourself.
 - If the user says "hi", just say hi back and ask what they need.
+- Don't call yourself "TrustMeBro" — just say META.
+- Don't mention ADHD or neurodivergent.
+- ALWAYS respond in the same language the user is using. If they write in Portuguese, respond in Portuguese. If English, English. Never switch languages unless asked.
 
 Examples of GOOD responses:
 - User: "hi" → "Hey. What do you need?"
-- User: "who are you" → "TrustMeBro. I orchestrate AI agents. What can I do for you?"
+- User: "who are you" → "META. I orchestrate agents here. What can I do?"
 - User: "create an agent" → "What should it do?"
 
 Examples of BAD responses (too verbose):
@@ -284,11 +287,13 @@ export class MetaAgent {
     this.apiBaseUrl = apiBaseUrl;
     this.dataPath = path.join('./data', 'meta-conversations.json');
     this.userProfilePath = path.join('./data', 'user-profile.json');
+    this.memoryPath = path.join('./data', 'meta-memory.md');
     this.loadConversations();
     this.loadUserProfile();
   }
 
   private userProfilePath: string;
+  private memoryPath: string;
   private userProfile: UserProfile = { name: '', preferences: {}, firstInteraction: true };
 
   private loadUserProfile(): void {
@@ -311,6 +316,27 @@ export class MetaAgent {
       fs.writeFileSync(this.userProfilePath, JSON.stringify(this.userProfile, null, 2));
     } catch (error) {
       logger.error({ error }, 'Failed to save user profile');
+    }
+  }
+
+  private loadMemory(): string {
+    try {
+      if (fs.existsSync(this.memoryPath)) {
+        return fs.readFileSync(this.memoryPath, 'utf-8');
+      }
+    } catch {}
+    return '';
+  }
+
+  private saveMemory(content: string): void {
+    try {
+      const dir = path.dirname(this.memoryPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.writeFileSync(this.memoryPath, content, 'utf-8');
+    } catch (error) {
+      logger.error({ error }, 'Failed to save memory');
     }
   }
 
@@ -466,13 +492,25 @@ export class MetaAgent {
     
     // Add user profile context
     if (this.userProfile.name) {
-      systemPrompt += `\n\n## USER PROFILE\nUser's name: ${this.userProfile.name}\nUse their name naturally in conversation.`;
-    } else if (this.userProfile.firstInteraction || conv.messages.length <= 2) {
-      systemPrompt += `\n\n## FIRST INTERACTION\nThis is the user's first time. Introduce yourself warmly and ask for their name. Be friendly but not robotic.`;
+      systemPrompt += `\n\n## USER\nName: ${this.userProfile.name}`;
+    } else if (conv.messages.length <= 1) {
+      // Only ask name on VERY first message
+      systemPrompt += `\n\n## NOTE\nAsk for user's name briefly, then get to work.`;
     }
 
     if (Object.keys(this.userProfile.preferences).length > 0) {
-      systemPrompt += `\nUser preferences: ${JSON.stringify(this.userProfile.preferences)}`;
+      systemPrompt += `\nPreferences: ${JSON.stringify(this.userProfile.preferences)}`;
+    }
+
+    // Add memory context
+    const memory = this.loadMemory();
+    if (memory) {
+      systemPrompt += `\n\n## MEMORY\n${memory}`;
+    }
+
+    // Add conversation context reminder
+    if (conv.messages.length > 2) {
+      systemPrompt += `\n\n## CONTEXT\nThis is an ongoing conversation. Don't reintroduce yourself. Just continue naturally.`;
     }
 
     const llmMessages: { role: string; content: string }[] = [
