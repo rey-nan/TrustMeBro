@@ -376,7 +376,8 @@ export class MetaAgent {
 
   private parseApiCalls(content: string): { method: string; endpoint: string; body?: unknown }[] {
     const calls: { method: string; endpoint: string; body?: unknown }[] = [];
-    const regex = /<api_call>([\s\S]*?)<\/api_call>/g;
+    // Handle both <api_call> and <apicall>
+    const regex = /<api[_-]?call>([\s\S]*?)<\/api[_-]?call>/gi;
     let match;
 
     while ((match = regex.exec(content)) !== null) {
@@ -532,7 +533,11 @@ export class MetaAgent {
       }
 
       // Remove API call blocks from response for cleaner output
-      const cleanResponse = response.replace(/<api_call>[\s\S]*?<\/api_call>/g, '').trim();
+      const cleanResponse = response
+        .replace(/<api[_-]?call>[\s\S]*?<\/api[_-]?call>/gi, '')
+        .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/gi, '')
+        .replace(/<[^>]+>/g, '')
+        .trim();
 
       // Execute each API call
       for (const call of apiCalls) {
