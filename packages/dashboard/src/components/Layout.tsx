@@ -35,7 +35,6 @@ const NAV_ITEMS: NavItem[] = [
     subPages: [
       { id: 'home', label: 'Meta-Agent' },
       { id: 'dashboard', label: 'Dashboard' },
-      { id: 'meta-agent', label: 'Chat' },
     ],
   },
   {
