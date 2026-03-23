@@ -127,6 +127,7 @@ export function ActivityFeed() {
 
       <div style={{
         display: 'flex',
+        flexWrap: 'wrap',
         gap: 16,
         marginBottom: 24,
         padding: 16,
@@ -158,8 +159,8 @@ export function ActivityFeed() {
             ))}
           </select>
         </div>
-        <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-          <button onClick={loadActivities} disabled={loading}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', flexShrink: 0 }}>
+          <button onClick={loadActivities} disabled={loading} style={{ whiteSpace: 'nowrap' }}>
             {loading ? 'Loading...' : 'Refresh'}
           </button>
         </div>
