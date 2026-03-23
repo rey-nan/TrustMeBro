@@ -42,10 +42,18 @@ interface Department {
   color?: string;
 }
 
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export function Home() {
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
 
   useEffect(() => {
     loadData();
@@ -60,6 +68,29 @@ export function Home() {
       if (agentsRes.success && agentsRes.data) setAgents(agentsRes.data as Agent[]);
       if (deptsRes.success && deptsRes.data) setDepartments(deptsRes.data as Department[]);
     } catch {}
+  };
+
+  const handleSend = async () => {
+    if (!input.trim()) return;
+
+    const userMsg: Message = { role: 'user', content: input };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput('');
+    setIsThinking(true);
+
+    try {
+      const res = await api.post('/api/meta/chat', { message: input });
+      if (res.success && res.data) {
+        const data = res.data as { message: string };
+        const assistantMsg: Message = { role: 'assistant', content: data.message };
+        setMessages((prev) => [...prev, assistantMsg]);
+      }
+    } catch {
+      const errorMsg: Message = { role: 'assistant', content: 'Error processing message.' };
+      setMessages((prev) => [...prev, errorMsg]);
+    }
+
+    setIsThinking(false);
   };
 
   // Group agents by department
@@ -90,10 +121,10 @@ export function Home() {
       position: 'relative',
       overflow: 'hidden',
     }}>
-      {/* Ambient Glow - Large background pulse */}
+      {/* Ambient Glow */}
       <div className="ambient-glow" style={{
         position: 'absolute',
-        top: '20%',
+        top: isOpen ? '10%' : '20%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
         width: 500,
@@ -101,12 +132,13 @@ export function Home() {
         background: `radial-gradient(circle, ${colors.primary}08 0%, ${colors.primary}03 40%, transparent 70%)`,
         borderRadius: '50%',
         pointerEvents: 'none',
+        transition: 'top 0.5s ease',
       }} />
 
-      {/* Secondary glow rings */}
+      {/* Ring pulses */}
       <div className="ring-pulse" style={{
         position: 'absolute',
-        top: '20%',
+        top: isOpen ? '10%' : '20%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
         width: 350,
@@ -114,27 +146,21 @@ export function Home() {
         borderRadius: '50%',
         border: `1px solid ${colors.primary}10`,
         pointerEvents: 'none',
-      }} />
-      <div className="ring-pulse-delay" style={{
-        position: 'absolute',
-        top: '20%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        width: 280,
-        height: 280,
-        borderRadius: '50%',
-        border: `1px solid ${colors.primary}08`,
-        pointerEvents: 'none',
+        transition: 'top 0.5s ease',
       }} />
 
-      {/* Meta-Agent Eye */}
+      {/* ═══════════════════════════════════════════════════════
+          META EYE
+          ═══════════════════════════════════════════════════════ */}
       <div
-        onClick={() => setIsSpeaking(!isSpeaking)}
+        onClick={() => setIsOpen(!isOpen)}
         style={{
-          marginTop: 30,
+          marginTop: isOpen ? 0 : 50,
           cursor: 'pointer',
           position: 'relative',
           zIndex: 10,
+          transition: 'all 0.5s ease',
+          transform: isOpen ? 'scale(0.6)' : 'scale(1)',
         }}
       >
         {/* Outer pulsing glow */}
@@ -145,12 +171,13 @@ export function Home() {
           right: -30,
           bottom: -30,
           borderRadius: '50%',
-          background: `radial-gradient(circle, ${colors.primary}15 0%, transparent 70%)`,
+          background: `radial-gradient(circle, ${colors.primary}${isThinking ? '25' : '12'} 0%, transparent 70%)`,
           pointerEvents: 'none',
+          transition: 'all 0.3s ease',
         }} />
 
-        {/* Eye Sprite Container */}
-        <div className="meta-eye-sprite" style={{
+        {/* Eye Sprite */}
+        <div className={`meta-eye-sprite ${isThinking ? 'thinking' : ''}`} style={{
           width: 180,
           height: 180,
           backgroundImage: 'url(/eye-sprite.webp)',
@@ -167,8 +194,11 @@ export function Home() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        marginTop: 8,
+        marginTop: isOpen ? 0 : 8,
         zIndex: 10,
+        transform: isOpen ? 'scale(0.8)' : 'scale(1)',
+        transition: 'all 0.5s ease',
+        opacity: isOpen ? 0.7 : 1,
       }}>
         <h2 style={{
           fontFamily: fonts.display,
@@ -183,87 +213,66 @@ export function Home() {
         </h2>
       </div>
 
-      {/* Small animated graph below eye */}
-      <div className="activity-graph" style={{
-        display: 'flex',
-        alignItems: 'flex-end',
-        gap: 2,
-        height: 24,
-        marginTop: 12,
-        zIndex: 10,
-        opacity: 0.4,
-      }}>
-        {Array.from({ length: 20 }).map((_, i) => (
-          <div
-            key={i}
-            className="graph-bar"
-            style={{
-              width: 2,
-              height: `${20 + Math.random() * 80}%`,
-              background: colors.primary,
-              borderRadius: 1,
-              animation: `graphPulse ${1 + Math.random() * 2}s ease-in-out infinite`,
-              animationDelay: `${i * 0.1}s`,
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Speaking Indicator */}
-      {isSpeaking && (
+      {/* ═══════════════════════════════════════════════════════
+          THINKING INDICATOR (only when processing)
+          ═══════════════════════════════════════════════════════ */}
+      {isThinking && (
         <div style={{
-          marginTop: 16,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           gap: 8,
+          marginTop: 8,
           zIndex: 10,
         }}>
+          {/* Activity graph */}
           <div style={{
             display: 'flex',
             alignItems: 'flex-end',
-            height: 32,
-            gap: 4,
+            gap: 2,
+            height: 20,
           }}>
-            {[3, 6, 4, 7, 5].map((h, i) => (
+            {Array.from({ length: 15 }).map((_, i) => (
               <div
                 key={i}
+                className="graph-bar"
                 style={{
-                  width: 3,
-                  height: h * 4,
-                  backgroundColor: colors.primary,
-                  borderRadius: 4,
-                  opacity: 0.9,
-                  boxShadow: `0 0 10px ${colors.primary}80`,
-                  animation: `waveBar ${0.8 + i * 0.1}s infinite`,
+                  width: 2,
+                  height: `${30 + Math.random() * 70}%`,
+                  background: colors.primary,
+                  borderRadius: 1,
+                  animationDelay: `${i * 0.08}s`,
                 }}
               />
             ))}
           </div>
+
           <p style={{
             fontFamily: fonts.display,
             fontSize: 9,
-            color: `${colors.primary}50`,
+            color: `${colors.primary}60`,
             letterSpacing: '0.6em',
             textTransform: 'uppercase',
             margin: 0,
           }}>
-            Speaking...
+            Thinking...
           </p>
         </div>
       )}
 
-      {/* Agent Avatars Grouped by Department */}
-      {agents.length > 0 && (
+      {/* ═══════════════════════════════════════════════════════
+          AGENTS GRID (hidden when chat is open)
+          ═══════════════════════════════════════════════════════ */}
+      {!isOpen && agents.length > 0 && (
         <div style={{
           marginTop: 40,
           width: '100%',
           maxWidth: 340,
           zIndex: 10,
+          animation: 'fadeIn 0.3s ease',
         }}>
           {Object.entries(groupedAgents).map(([deptId, deptAgents]) => (
             <div key={deptId} style={{ marginBottom: 24 }}>
-              {/* Department label */}
               <p style={{
                 fontFamily: fonts.display,
                 fontSize: 9,
@@ -277,7 +286,6 @@ export function Home() {
                 {getDeptName(deptId)}
               </p>
 
-              {/* Agents in this department */}
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: `repeat(${Math.min(deptAgents.length, 4)}, 1fr)`,
@@ -290,15 +298,12 @@ export function Home() {
                   const accentColor = getDeptColor(deptId);
 
                   return (
-                    <div
-                      key={agent.id}
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        opacity: isActive ? 1 : 0.35,
-                      }}
-                    >
+                    <div key={agent.id} style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      opacity: isActive ? 1 : 0.35,
+                    }}>
                       <div style={{
                         width: 48,
                         height: 48,
@@ -343,6 +348,129 @@ export function Home() {
         </div>
       )}
 
+      {/* ═══════════════════════════════════════════════════════
+          CHAT (visible when eye is clicked)
+          ═══════════════════════════════════════════════════════ */}
+      {isOpen && (
+        <div style={{
+          width: '100%',
+          maxWidth: 500,
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          zIndex: 10,
+          animation: 'slideUp 0.4s ease',
+        }}>
+          {/* Messages */}
+          <div style={{
+            flex: 1,
+            overflowY: 'auto',
+            padding: '16px 0',
+            minHeight: 200,
+            maxHeight: 'calc(100vh - 400px)',
+          }}>
+            {messages.length === 0 && (
+              <p style={{
+                textAlign: 'center',
+                color: colors.onSurfaceDim,
+                fontFamily: fonts.display,
+                fontSize: 11,
+                opacity: 0.5,
+                marginTop: 40,
+              }}>
+                Ask Meta anything...
+              </p>
+            )}
+
+            {messages.map((msg, i) => (
+              <div
+                key={i}
+                style={{
+                  marginBottom: 16,
+                  display: 'flex',
+                  justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                }}
+              >
+                <div style={{
+                  maxWidth: '80%',
+                  padding: '10px 14px',
+                  borderRadius: msg.role === 'user' ? '12px 12px 0 12px' : '12px 12px 12px 0',
+                  background: msg.role === 'user' ? `${colors.primary}20` : colors.surfaceCard,
+                  color: colors.onSurface,
+                  fontSize: 13,
+                  lineHeight: 1.5,
+                }}>
+                  {msg.content}
+                </div>
+              </div>
+            ))}
+
+            {isThinking && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '10px 14px',
+              }}>
+                <div className="typing-dots">
+                  <span /><span /><span />
+                </div>
+                <span style={{
+                  fontSize: 11,
+                  color: colors.onSurfaceDim,
+                  fontFamily: fonts.display,
+                }}>
+                  Meta is thinking...
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Input */}
+          <div style={{
+            display: 'flex',
+            gap: 8,
+            padding: '12px 0',
+            borderTop: `1px solid ${colors.primary}15`,
+          }}>
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              placeholder="Type a message..."
+              style={{
+                flex: 1,
+                background: colors.surfaceCard,
+                border: `1px solid ${colors.primary}20`,
+                borderRadius: 8,
+                padding: '10px 14px',
+                color: colors.onSurface,
+                fontSize: 13,
+                fontFamily: fonts.body,
+                outline: 'none',
+              }}
+            />
+            <button
+              onClick={handleSend}
+              disabled={!input.trim() || isThinking}
+              style={{
+                background: colors.primary,
+                border: 'none',
+                borderRadius: 8,
+                padding: '10px 16px',
+                color: colors.surface,
+                cursor: 'pointer',
+                fontFamily: fonts.display,
+                fontSize: 12,
+                fontWeight: 'bold',
+              }}
+            >
+              Send
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* CSS Animations */}
       <style>{`
         @keyframes eyeLife {
@@ -359,20 +487,26 @@ export function Home() {
 
         .meta-eye-sprite {
           animation: eyeLife 12s steps(1) infinite, eyeGlow 4s ease-in-out infinite;
-          transition: box-shadow 0.3s ease;
+          transition: all 0.3s ease;
+          box-shadow: 0 0 40px rgba(0, 242, 255, 0.15), 0 0 80px rgba(0, 242, 255, 0.05);
+        }
+
+        .meta-eye-sprite.thinking {
+          animation: eyeLife 12s steps(1) infinite, eyeGlowIntense 2s ease-in-out infinite;
         }
 
         .meta-eye-sprite:hover {
-          filter: brightness(1.2);
+          filter: brightness(1.15);
         }
 
         @keyframes eyeGlow {
-          0%, 100% {
-            box-shadow: 0 0 40px rgba(0, 242, 255, 0.15), 0 0 80px rgba(0, 242, 255, 0.05);
-          }
-          50% {
-            box-shadow: 0 0 70px rgba(0, 242, 255, 0.3), 0 0 140px rgba(0, 242, 255, 0.1);
-          }
+          0%, 100% { box-shadow: 0 0 40px rgba(0, 242, 255, 0.15), 0 0 80px rgba(0, 242, 255, 0.05); }
+          50% { box-shadow: 0 0 60px rgba(0, 242, 255, 0.25), 0 0 120px rgba(0, 242, 255, 0.08); }
+        }
+
+        @keyframes eyeGlowIntense {
+          0%, 100% { box-shadow: 0 0 60px rgba(0, 242, 255, 0.3), 0 0 120px rgba(0, 242, 255, 0.15); }
+          50% { box-shadow: 0 0 100px rgba(0, 242, 255, 0.5), 0 0 180px rgba(0, 242, 255, 0.2); }
         }
 
         .eye-outer-glow {
@@ -381,7 +515,7 @@ export function Home() {
 
         @keyframes outerGlowPulse {
           0%, 100% { opacity: 0.4; transform: scale(1); }
-          50% { opacity: 0.9; transform: scale(1.05); }
+          50% { opacity: 0.8; transform: scale(1.03); }
         }
 
         .ambient-glow {
@@ -389,30 +523,26 @@ export function Home() {
         }
 
         @keyframes ambientPulse {
-          0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
-          50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 1; }
         }
 
         .ring-pulse {
           animation: ringPulse 4s ease-in-out infinite;
         }
 
-        .ring-pulse-delay {
-          animation: ringPulse 4s ease-in-out infinite 1s;
-        }
-
         @keyframes ringPulse {
-          0%, 100% { opacity: 0.2; transform: translate(-50%, -50%) scale(1); }
-          50% { opacity: 0.7; transform: translate(-50%, -50%) scale(1.05); }
+          0%, 100% { opacity: 0.2; }
+          50% { opacity: 0.6; }
         }
 
         .graph-bar {
-          animation: graphPulse 2s ease-in-out infinite;
+          animation: graphPulse 1.5s ease-in-out infinite;
         }
 
         @keyframes graphPulse {
-          0%, 100% { opacity: 0.3; transform: scaleY(0.6); }
-          50% { opacity: 0.8; transform: scaleY(1); }
+          0%, 100% { opacity: 0.4; transform: scaleY(0.5); }
+          50% { opacity: 0.9; transform: scaleY(1); }
         }
 
         @keyframes pulse {
@@ -420,9 +550,35 @@ export function Home() {
           50% { opacity: 0.3; }
         }
 
-        @keyframes waveBar {
-          0%, 100% { transform: scaleY(1); }
-          50% { transform: scaleY(1.5); }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .typing-dots {
+          display: flex;
+          gap: 4px;
+        }
+
+        .typing-dots span {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: ${colors.primary};
+          animation: typingBounce 1.4s infinite;
+        }
+
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typingBounce {
+          0%, 60%, 100% { transform: translateY(0); opacity: 0.3; }
+          30% { transform: translateY(-6px); opacity: 1; }
         }
       `}</style>
     </div>
