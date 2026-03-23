@@ -56,7 +56,7 @@ function Check-Git {
 
 # Clonar repositório
 function Install-TrustMeBro {
-  $installDir = "$env:USERPROFILE\TrustMeBro"
+  $installDir = "$(Get-Location)\TrustMeBro"
 
   if (Test-Path $installDir) {
     Write-Host ""
@@ -109,4 +109,4 @@ Write-Host ""
 Write-Host "Starting setup wizard..." -ForegroundColor White
 Write-Host ""
 
-node setup.js
+node packages/cli/dist/index.js setup
