@@ -1369,6 +1369,48 @@ export function createSetupCommand(): Command {
         }
       } catch {}
 
+      // Make sure API is running before starting chat
+      if (!(await checkApiRunning())) {
+        console.log();
+        console.log(chalk.yellow('Starting API server...'));
+        
+        // Build if needed
+        try {
+          execSync(`${npmCmd} run build:core`, { cwd: rootDir, stdio: 'ignore' });
+          execSync(`${npmCmd} run build:api`, { cwd: rootDir, stdio: 'ignore' });
+        } catch {}
+
+        // Start API in background
+        const dataDir = path.join(rootDir, 'data');
+        if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+        const logFile = fs.openSync(path.join(dataDir, 'api.log'), 'a');
+        const apiDist = path.resolve(rootDir, 'packages', 'api', 'dist', 'index.js');
+        const apiProcess = spawn('node', [apiDist], {
+          cwd: rootDir,
+          stdio: ['ignore', logFile, logFile],
+          detached: true,
+          env: { ...process.env, NODE_ENV: 'production' },
+        });
+        apiProcess.unref();
+
+        // Wait for API
+        const spinner = ora('Waiting for API...').start();
+        let ready = false;
+        for (let i = 0; i < 30; i++) {
+          await new Promise(r => setTimeout(r, 1000));
+          if (await checkApiRunning()) {
+            spinner.succeed('API ready!');
+            ready = true;
+            break;
+          }
+        }
+        if (!ready) {
+          spinner.fail('API failed to start');
+          console.log(chalk.dim('\nStart it manually: ') + chalk.cyan('node start.js'));
+          return;
+        }
+      }
+
       if (existingAgents.length > 0 || agentId) {
         console.log();
         console.log(chalk.green('✓ Starting chat with your agents...'));
@@ -1384,12 +1426,47 @@ export function createSetupCommand(): Command {
       // Start Meta-Agent chat
       await startAgentChat(agentId || 'meta', agentName || 'Meta-Agent');
     } else if (interactionMode === 'dashboard') {
+      // Start API if not running
+      if (!(await checkApiRunning())) {
+        console.log();
+        console.log(chalk.yellow('Starting API server...'));
+        
+        try {
+          execSync(`${npmCmd} run build:core`, { cwd: rootDir, stdio: 'ignore' });
+          execSync(`${npmCmd} run build:api`, { cwd: rootDir, stdio: 'ignore' });
+        } catch {}
+
+        const dataDir = path.join(rootDir, 'data');
+        if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+        const logFile = fs.openSync(path.join(dataDir, 'api.log'), 'a');
+        const apiDist = path.resolve(rootDir, 'packages', 'api', 'dist', 'index.js');
+        const apiProcess = spawn('node', [apiDist], {
+          cwd: rootDir,
+          stdio: ['ignore', logFile, logFile],
+          detached: true,
+          env: { ...process.env, NODE_ENV: 'production' },
+        });
+        apiProcess.unref();
+
+        const spinner = ora('Waiting for API...').start();
+        let ready = false;
+        for (let i = 0; i < 30; i++) {
+          await new Promise(r => setTimeout(r, 1000));
+          if (await checkApiRunning()) {
+            spinner.succeed('API ready!');
+            ready = true;
+            break;
+          }
+        }
+        if (!ready) {
+          spinner.fail('API failed to start');
+          console.log(chalk.dim('\nStart it manually: ') + chalk.cyan('node start.js'));
+        }
+      }
+
       console.log();
-      console.log(chalk.dim('Starting dashboard...'));
       console.log(chalk.dim('API:       ') + chalk.cyan('http://localhost:3000'));
       console.log(chalk.dim('Dashboard: ') + chalk.cyan('http://localhost:5173'));
-      console.log();
-      console.log(chalk.dim('Run: ') + chalk.cyan('npm run dev'));
       console.log();
 
       // Try to open browser
