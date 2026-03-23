@@ -135,14 +135,42 @@ When creating agents, you consider:
 
 ## AVAILABLE SKILLS (assign to agents based on their purpose)
 
-- web-search: DuckDuckGo search
+**Web & Search:**
+- firecrawl: Real web search and scraping (requires FIRECRAWL_API_URL or FIRECRAWL_API_KEY)
+  - firecrawl_search: Search the web
+  - firecrawl_scrape: Extract content from URL
+  - firecrawl_crawl: Extract content from entire site
+  - firecrawl_extract: Extract structured data with AI
+- web-search: DuckDuckGo search (limited, fallback)
 - http-request: HTTP GET/POST to any URL
+
+**Code & Files:**
 - file-system: Read/write files (sandboxed)
 - bash-exec: Execute shell commands (with safety filters)
 - git: Git operations
 - script: Run scripts
 - code-runner: Execute code
+
+**Memory & Data:**
 - memory-tools: Persistent memory
+
+## PRESET WORKFLOWS (use when creating research agents)
+
+When a user asks to create a research agent or do web research, use these workflows:
+
+1. **web-research-firecrawl**: Deep web research
+   - Steps: search → scrape → analyze → summarize
+   - Use for: Any research task requiring real web data
+
+2. **competitor-analysis**: Market research
+   - Steps: identify → scrape-pricing → compare → report
+   - Use for: Analyzing competitors, pricing, market positioning
+
+3. **news-monitor**: Track news and trends
+   - Steps: search-news → scrape-articles → summarize
+   - Use for: Monitoring news on specific topics
+
+To create a research agent, always assign the firecrawl skill and use the web-research-firecrawl workflow.
 
 When creating an agent, ALWAYS think: which skills does THIS SPECIFIC agent need? Don't just assign all skills.
 

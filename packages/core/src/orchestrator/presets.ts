@@ -18,6 +18,53 @@ export interface WorkflowPreset {
 
 export const WORKFLOW_PRESETS: WorkflowPreset[] = [
   {
+    id: 'web-research-firecrawl',
+    name: 'Web Research (Firecrawl)',
+    description: 'Deep web research using Firecrawl - searches, scrapes, and extracts real data from the internet',
+    icon: '🔥',
+    category: 'Research',
+    pattern: 'pipeline',
+    steps: [
+      { id: 'search', description: 'Search the web using Firecrawl', inputTemplate: 'Use firecrawl_search to find information about: {{input}}' },
+      { id: 'scrape', description: 'Scrape top results for details', inputTemplate: 'Use firecrawl_scrape to extract detailed content from the most relevant URLs found' },
+      { id: 'analyze', description: 'Analyze and structure findings', inputTemplate: 'Analyze the scraped data and extract key insights, facts, and sources:\n{{previous}}' },
+      { id: 'summarize', description: 'Create final summary', inputTemplate: 'Create a clear, concise summary with sources:\n{{previous}}' },
+    ],
+    defaultInput: 'Research topic',
+    tags: ['firecrawl', 'web', 'research', 'scrape', 'search', 'internet'],
+  },
+  {
+    id: 'competitor-analysis',
+    name: 'Competitor Analysis',
+    description: 'Research competitors, pricing, and market positioning',
+    icon: '📊',
+    category: 'Research',
+    pattern: 'pipeline',
+    steps: [
+      { id: 'identify', description: 'Identify competitors', inputTemplate: 'Use firecrawl_search to find competitors for: {{input}}' },
+      { id: 'scrape-pricing', description: 'Scrape pricing pages', inputTemplate: 'Use firecrawl_scrape to extract pricing and features from competitor websites' },
+      { id: 'compare', description: 'Compare and analyze', inputTemplate: 'Compare competitors based on pricing, features, and positioning:\n{{previous}}' },
+      { id: 'report', description: 'Generate report', inputTemplate: 'Create a competitor analysis report with actionable insights:\n{{previous}}' },
+    ],
+    defaultInput: 'Company or product to analyze',
+    tags: ['firecrawl', 'competitor', 'pricing', 'market', 'analysis'],
+  },
+  {
+    id: 'news-monitor',
+    name: 'News Monitor',
+    description: 'Track news and trends on specific topics',
+    icon: '📰',
+    category: 'Research',
+    pattern: 'pipeline',
+    steps: [
+      { id: 'search-news', description: 'Search latest news', inputTemplate: 'Use firecrawl_search to find the latest news about: {{input}}' },
+      { id: 'scrape-articles', description: 'Extract article content', inputTemplate: 'Use firecrawl_scrape to extract full content from the top news articles' },
+      { id: 'summarize', description: 'Summarize trends', inputTemplate: 'Summarize the key trends and developments:\n{{previous}}' },
+    ],
+    defaultInput: 'Topic to monitor',
+    tags: ['firecrawl', 'news', 'trends', 'monitoring'],
+  },
+  {
     id: 'research-summarize',
     name: 'Research & Summarize',
     description: 'Search the web and create a summary',
