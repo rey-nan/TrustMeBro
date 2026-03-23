@@ -1,4 +1,11 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+// Use current hostname for API - works on localhost and network access
+const getApiBase = () => {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  const host = window.location.hostname;
+  return `http://${host}:3000`;
+};
+
+const API_BASE = getApiBase();
 const API_KEY = import.meta.env.VITE_API_KEY || '';
 
 export interface ApiResponse<T = unknown> {
