@@ -1174,131 +1174,16 @@ export function createSetupCommand(): Command {
       return;
     }
 
-    // Step 4: Create first agent
+    // Step 3: Telegram (optional)
     console.log();
-    console.log(chalk.bold('Step 4/5: Create Your First Agent'));
+    console.log(chalk.bold('Step 3/4: Telegram Integration (Optional)'));
     console.log(chalk.dim('─'.repeat(40)));
-
-    const { createAgent } = await prompts({
-      type: 'confirm',
-      name: 'createAgent',
-      message: 'Create your first agent now?',
-      initial: true,
-    }, { onCancel });
-    if (cancelled) return;
-
-    let agentId = '';
-    let agentName = '';
-
-    if (createAgent) {
-      const rootDir = process.cwd();
-
-      // Check if API is running
-      let apiRunning = await checkApiRunning();
-
-      if (!apiRunning) {
-        console.log();
-        console.log(chalk.yellow('Starting API server...'));
-        console.log(chalk.dim('This may take a moment on first run.'));
-        console.log();
-
-        // Build first (with clean)
-        try {
-          // Clean old builds
-          const coreDist = path.join(rootDir, 'packages', 'core', 'dist');
-          const apiDistDir = path.join(rootDir, 'packages', 'api', 'dist');
-          if (fs.existsSync(coreDist)) fs.rmSync(coreDist, { recursive: true });
-          if (fs.existsSync(apiDistDir)) fs.rmSync(apiDistDir, { recursive: true });
-
-          execSync(`${npmCmd} run build:core`, { cwd: rootDir, stdio: 'inherit' });
-          execSync(`${npmCmd} run build:api`, { cwd: rootDir, stdio: 'inherit' });
-        } catch {
-          console.log(chalk.red('Build failed. Please run manually:'));
-          console.log(chalk.cyan('  npm run build:core'));
-          console.log(chalk.cyan('  npm run dev:api'));
-          return;
-        }
-
-        // Start API in background (logs to file, not terminal)
-        console.log(chalk.green('✓ Build complete! Starting API...\n'));
-        console.log(chalk.dim('API logs: data/api.log\n'));
-
-        // Ensure data/ exists
-        const dataDir = path.join(rootDir, 'data');
-        if (!fs.existsSync(dataDir)) {
-          fs.mkdirSync(dataDir, { recursive: true });
-        }
-
-        // Redirect logs to file
-        const logFile = fs.openSync(path.join(dataDir, 'api.log'), 'a');
-
-        const apiDist = path.resolve(rootDir, 'packages', 'api', 'dist', 'index.js');
-        const apiProcess = spawn('node', [apiDist], {
-          cwd: rootDir,
-          stdio: ['ignore', logFile, logFile],
-          detached: true,
-          env: { ...process.env, NODE_ENV: 'production' },
-        });
-        apiProcess.unref();
-
-        // Wait for API to be ready
-        const spinner = ora('Waiting for API...').start();
-        let ready = false;
-        for (let i = 0; i < 30; i++) {
-          await new Promise(r => setTimeout(r, 1000));
-          if (await checkApiRunning()) {
-            spinner.succeed('API ready!');
-            ready = true;
-            break;
-          }
-        }
-
-        if (!ready) {
-          spinner.fail('API failed to start');
-          
-          // Check if port is in use
-          try {
-            const { execSync: exec } = require('child_process');
-            const portCheck = exec('lsof -i :3000 2>/dev/null || netstat -ano 2>/dev/null | grep :3000 || echo "Port check not available"').toString().trim();
-            if (portCheck && !portCheck.includes('not available')) {
-              console.log(chalk.yellow('\nPort 3000 is already in use:'));
-              console.log(chalk.dim(portCheck));
-              console.log(chalk.dim('\nKill the process and run again:'));
-              console.log(chalk.cyan('  kill $(lsof -t -i:3000) 2>/dev/null; node start.js'));
-            }
-          } catch {}
-          
-          // Check log file
-          const logPath = path.join(dataDir, 'api.log');
-          if (fs.existsSync(logPath)) {
-            const lastLogs = fs.readFileSync(logPath, 'utf-8').split('\n').slice(-10).join('\n');
-            console.log(chalk.dim('\nLast logs:'));
-            console.log(chalk.dim(lastLogs));
-          }
-          
-          console.log(chalk.dim('\nYou can start the API manually:'));
-          console.log(chalk.cyan('  node start.js'));
-          apiProcess.kill();
-          return;
-        }
-      }
-
-      const result = await createFirstAgent();
-      if (result) {
-        agentId = result.agentId;
-        agentName = result.agentName;
-      }
-    }
-
-    // Step 5: Telegram (optional)
-    console.log();
-    console.log(chalk.bold('Step 5/5: Telegram Integration (Optional)'));
-    console.log(chalk.dim('─'.repeat(40)));
+    console.log(chalk.dim('Connect Telegram to chat with your agents remotely.'));
 
     const { configureTelegramNow } = await prompts({
       type: 'confirm',
       name: 'configureTelegramNow',
-      message: 'Connect Telegram for remote access?',
+      message: 'Connect Telegram now?',
       initial: false,
     }, { onCancel });
     if (cancelled) return;
@@ -1310,15 +1195,14 @@ export function createSetupCommand(): Command {
         const { retry } = await prompts({
           type: 'confirm',
           name: 'retry',
-          message: 'Would you like to try Telegram setup again?',
+          message: 'Try Telegram setup again?',
           initial: false,
         }, { onCancel });
 
         if (retry && !cancelled) {
           await configureTelegram();
         } else {
-          console.log(chalk.dim('\nSkipping Telegram. You can set it up later by running: ') + chalk.cyan('tmb setup --telegram'));
-          console.log();
+          console.log(chalk.dim('\nSkipped. Configure later: ') + chalk.cyan('tmb setup --telegram'));
         }
       } else {
         saveEnv({
@@ -1328,7 +1212,7 @@ export function createSetupCommand(): Command {
       }
     }
 
-    // Summary & Interface Selection
+    // Step 4: Start & Choose Interface
     console.log();
     console.log(chalk.cyan('═'.repeat(50)));
     console.log(chalk.bold('  Setup Complete!'));
@@ -1336,12 +1220,9 @@ export function createSetupCommand(): Command {
     console.log();
     console.log(chalk.cyan('Provider: ') + provider.name);
     console.log(chalk.cyan('Model:    ') + model);
-    if (agentName) {
-      console.log(chalk.cyan('Agent:    ') + agentName);
-    }
     console.log();
 
-    console.log(chalk.bold('How would you like to interact with TrustMeBro?'));
+    console.log(chalk.bold('How would you like to interact?'));
     console.log(chalk.dim('─'.repeat(40)));
 
     const { interactionMode } = await prompts({
@@ -1349,119 +1230,78 @@ export function createSetupCommand(): Command {
       name: 'interactionMode',
       message: 'Choose your interface:',
       choices: [
-        { title: 'CLI — chat in this terminal right now', value: 'cli' },
-        { title: 'Dashboard — web interface at http://localhost:5173', value: 'dashboard' },
-        { title: 'Both — CLI + Dashboard together', value: 'both' },
-        { title: "Later — I'll decide later", value: 'later' },
+        { title: 'Dashboard — web interface', value: 'dashboard' },
+        { title: 'CLI — chat in this terminal', value: 'cli' },
+        { title: 'Both — Dashboard + CLI', value: 'both' },
+        { title: "Later — I'll start manually", value: 'later' },
       ],
       initial: 0,
     }, { onCancel });
     if (cancelled) return;
 
-    // Execute based on mode
-    if (interactionMode === 'cli') {
-      // Check for any agents (created now or previously)
-      const agentsFile = path.resolve(rootDir, 'data', 'agents.json');
-      let existingAgents: any[] = [];
+    // Helper: Kill process on port 3000 if in use
+    async function killPort3000(): Promise<void> {
       try {
-        if (fs.existsSync(agentsFile)) {
-          existingAgents = JSON.parse(fs.readFileSync(agentsFile, 'utf-8')) || [];
+        if (isWindows) {
+          execSync('powershell -Command "Get-Process -Id (Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue).OwningProcess | Stop-Process -Force"', { stdio: 'ignore' });
+        } else {
+          execSync('kill $(lsof -t -i:3000) 2>/dev/null || true', { stdio: 'ignore' });
         }
+        await new Promise(r => setTimeout(r, 1000));
       } catch {}
+    }
 
-      // Make sure API is running before starting chat
-      if (!(await checkApiRunning())) {
-        console.log();
-        console.log(chalk.yellow('Starting API server...'));
-        
-        // Build if needed
-        try {
-          execSync(`${npmCmd} run build:core`, { cwd: rootDir, stdio: 'ignore' });
-          execSync(`${npmCmd} run build:api`, { cwd: rootDir, stdio: 'ignore' });
-        } catch {}
+    // Helper: Start API
+    async function startApi(): Promise<boolean> {
+      if (await checkApiRunning()) return true;
 
-        // Start API in background
-        const dataDir = path.join(rootDir, 'data');
-        if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
-        const logFile = fs.openSync(path.join(dataDir, 'api.log'), 'a');
-        const apiDist = path.resolve(rootDir, 'packages', 'api', 'dist', 'index.js');
-        const apiProcess = spawn('node', [apiDist], {
-          cwd: rootDir,
-          stdio: ['ignore', logFile, logFile],
-          detached: true,
-          env: { ...process.env, NODE_ENV: 'production' },
-        });
-        apiProcess.unref();
+      // Kill existing process on port 3000
+      await killPort3000();
 
-        // Wait for API
-        const spinner = ora('Waiting for API...').start();
-        let ready = false;
-        for (let i = 0; i < 30; i++) {
-          await new Promise(r => setTimeout(r, 1000));
-          if (await checkApiRunning()) {
-            spinner.succeed('API ready!');
-            ready = true;
-            break;
-          }
-        }
-        if (!ready) {
-          spinner.fail('API failed to start');
-          console.log(chalk.dim('\nStart it manually: ') + chalk.cyan('node start.js'));
-          return;
-        }
+      console.log();
+      console.log(chalk.yellow('Starting API server...'));
+
+      // Build
+      try {
+        execSync(`${npmCmd} run build:core`, { cwd: rootDir, stdio: 'ignore' });
+        execSync(`${npmCmd} run build:api`, { cwd: rootDir, stdio: 'ignore' });
+      } catch {
+        console.log(chalk.red('Build failed. Run manually: ') + chalk.cyan('npm run build:core && npm run build:api'));
+        return false;
       }
 
-      if (existingAgents.length > 0 || agentId) {
-        console.log();
-        console.log(chalk.green('✓ Starting chat with your agents...'));
-        console.log(chalk.dim('Type your message. Type "exit" to quit.'));
-        console.log();
-      } else {
-        console.log();
-        console.log(chalk.yellow('No agents yet. You can create one by saying:'));
-        console.log(chalk.cyan('"create an agent called [name] that [description]"'));
-        console.log();
+      // Start API
+      const dataDir = path.join(rootDir, 'data');
+      if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+      const logFile = fs.openSync(path.join(dataDir, 'api.log'), 'a');
+      const apiDist = path.resolve(rootDir, 'packages', 'api', 'dist', 'index.js');
+      const apiProcess = spawn('node', [apiDist], {
+        cwd: rootDir,
+        stdio: ['ignore', logFile, logFile],
+        detached: true,
+        env: { ...process.env, NODE_ENV: 'production' },
+      });
+      apiProcess.unref();
+
+      // Wait
+      const spinner = ora('Waiting for API...').start();
+      for (let i = 0; i < 30; i++) {
+        await new Promise(r => setTimeout(r, 1000));
+        if (await checkApiRunning()) {
+          spinner.succeed('API ready!');
+          return true;
+        }
       }
+      spinner.fail('API failed to start');
+      return false;
+    }
 
-      // Start Meta-Agent chat
-      await startAgentChat(agentId || 'meta', agentName || 'Meta-Agent');
-    } else if (interactionMode === 'dashboard') {
-      // Start API if not running
-      if (!(await checkApiRunning())) {
-        console.log();
-        console.log(chalk.yellow('Starting API server...'));
-        
-        try {
-          execSync(`${npmCmd} run build:core`, { cwd: rootDir, stdio: 'ignore' });
-          execSync(`${npmCmd} run build:api`, { cwd: rootDir, stdio: 'ignore' });
-        } catch {}
-
-        const dataDir = path.join(rootDir, 'data');
-        if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
-        const logFile = fs.openSync(path.join(dataDir, 'api.log'), 'a');
-        const apiDist = path.resolve(rootDir, 'packages', 'api', 'dist', 'index.js');
-        const apiProcess = spawn('node', [apiDist], {
-          cwd: rootDir,
-          stdio: ['ignore', logFile, logFile],
-          detached: true,
-          env: { ...process.env, NODE_ENV: 'production' },
-        });
-        apiProcess.unref();
-
-        const spinner = ora('Waiting for API...').start();
-        let ready = false;
-        for (let i = 0; i < 30; i++) {
-          await new Promise(r => setTimeout(r, 1000));
-          if (await checkApiRunning()) {
-            spinner.succeed('API ready!');
-            ready = true;
-            break;
-          }
-        }
-        if (!ready) {
-          spinner.fail('API failed to start');
-          console.log(chalk.dim('\nStart it manually: ') + chalk.cyan('node start.js'));
-        }
+    // Execute based on mode
+    if (interactionMode === 'dashboard' || interactionMode === 'both') {
+      const apiOk = await startApi();
+      if (!apiOk) {
+        console.log(chalk.dim('\nStart manually: ') + chalk.cyan('node start.js'));
+        return;
       }
 
       console.log();
@@ -1469,28 +1309,31 @@ export function createSetupCommand(): Command {
       console.log(chalk.dim('Dashboard: ') + chalk.cyan('http://localhost:5173'));
       console.log();
 
-      // Try to open browser
       if (openBrowser('http://localhost:5173')) {
         console.log(chalk.dim('Opening browser... ✓'));
       } else {
-        console.log(chalk.dim('Open browser manually: ') + chalk.cyan('http://localhost:5173'));
+        console.log(chalk.dim('Open browser: ') + chalk.cyan('http://localhost:5173'));
       }
-    } else if (interactionMode === 'both') {
+
+      if (interactionMode === 'both') {
+        console.log(chalk.dim('\nCLI: ') + chalk.cyan('tmb meta'));
+      }
+    } else if (interactionMode === 'cli') {
+      const apiOk = await startApi();
+      if (!apiOk) {
+        console.log(chalk.dim('\nStart manually: ') + chalk.cyan('node start.js'));
+        return;
+      }
+
       console.log();
-      console.log(chalk.dim('Starting everything...'));
-      console.log(chalk.dim('Run: ') + chalk.cyan('npm run dev'));
-      console.log(chalk.dim('Then open: ') + chalk.cyan('http://localhost:5173'));
+      console.log(chalk.green('✓ Starting chat with Meta-Agent...'));
+      console.log(chalk.dim('Type your message. Type "exit" to quit.'));
       console.log();
-      console.log(chalk.dim('You can also chat via CLI: ') + chalk.cyan('tmb meta'));
-      console.log();
+
+      await startAgentChat('meta', 'Meta-Agent');
     } else {
       console.log();
-      console.log(chalk.dim('No problem! When you are ready:'));
-      console.log();
-      console.log(chalk.dim('Start everything: ') + chalk.cyan('npm run dev'));
-      console.log(chalk.dim('CLI chat:         ') + chalk.cyan('tmb meta'));
-      console.log(chalk.dim('Dashboard only:   ') + chalk.cyan('npm run dev:dashboard'));
-      console.log();
+      console.log(chalk.dim('Start later with: ') + chalk.cyan('node start.js'));
     }
 
     console.log();
