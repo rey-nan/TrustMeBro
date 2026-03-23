@@ -32,6 +32,12 @@ const DEPT_COLORS: Record<string, string> = {
 // Simple markdown renderer
 function renderMarkdown(text: string): string {
   return text
+    // Remove system tags first
+    .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/gi, '')
+    .replace(/<apicall>[\s\S]*?<\/apicall>/gi, '')
+    .replace(/<api_call>[\s\S]*?<\/api_call>/gi, '')
+    .replace(/<api_result>[\s\S]*?<\/api_result>/gi, '')
+    .replace(/<api_error>[\s\S]*?<\/api_error>/gi, '')
     // Code blocks
     .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre style="background:#131313;padding:8px;border-radius:4px;margin:8px 0;overflow-x:auto;font-size:12px"><code>$2</code></pre>')
     // Inline code
