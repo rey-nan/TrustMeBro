@@ -1166,68 +1166,12 @@ export function createSetupCommand(): Command {
         ALLOWED_ORIGINS: 'http://localhost:5173',
         DB_PATH: './data/trustmebro.db',
         SANDBOX_TYPE: 'docker',
+        FIRECRAWL_API_URL: 'http://localhost:3002',
       });
       spinnerSave.succeed('Configuration saved!');
     } catch {
       spinnerSave.fail('Failed to save configuration');
       return;
-    }
-
-    // Step 3.5: Firecrawl (Web Search)
-    console.log();
-    console.log(chalk.bold('Step 3.5/5: Web Search (Firecrawl)'));
-    console.log(chalk.dim('─'.repeat(40)));
-    console.log(chalk.dim('Firecrawl enables real web search and content extraction.'));
-    console.log(chalk.dim('Options: Self-hosted (free) or Cloud (paid).'));
-    console.log();
-
-    const { firecrawlChoice } = await prompts({
-      type: 'select',
-      name: 'firecrawlChoice',
-      message: 'How do you want to use Firecrawl?',
-      choices: [
-        { title: 'Self-hosted (free) - Run Firecrawl locally via Docker', value: 'selfhost' },
-        { title: 'Cloud API (paid) - Use Firecrawl hosted service', value: 'cloud' },
-        { title: 'Skip - Configure later', value: 'skip' },
-      ],
-      initial: 0,
-    }, { onCancel });
-    if (cancelled) return;
-
-    if (firecrawlChoice === 'selfhost') {
-      console.log(chalk.dim('\nTo self-host Firecrawl:'));
-      console.log(chalk.cyan('  1. git clone https://github.com/firecrawl/firecrawl.git'));
-      console.log(chalk.cyan('  2. cd firecrawl && docker compose up'));
-      console.log(chalk.dim('  3. It will run on http://localhost:3002'));
-      console.log();
-
-      const { firecrawlUrl } = await prompts({
-        type: 'text',
-        name: 'firecrawlUrl',
-        message: 'Firecrawl URL:',
-        initial: 'http://localhost:3002',
-      }, { onCancel });
-      if (cancelled) return;
-
-      saveEnv({ FIRECRAWL_API_URL: firecrawlUrl });
-      console.log(chalk.green('✓ Firecrawl self-hosted configured!'));
-    } else if (firecrawlChoice === 'cloud') {
-      console.log(chalk.dim('\nGet your API key at: https://firecrawl.dev'));
-      console.log();
-
-      const { firecrawlKey } = await prompts({
-        type: 'password',
-        name: 'firecrawlKey',
-        message: 'Firecrawl API Key:',
-      }, { onCancel });
-      if (cancelled) return;
-
-      saveEnv({ FIRECRAWL_API_KEY: firecrawlKey });
-      console.log(chalk.green('✓ Firecrawl cloud configured!'));
-    } else {
-      console.log(chalk.dim('Skipped. Configure later in .env with:'));
-      console.log(chalk.dim('  FIRECRAWL_API_URL=http://localhost:3002 (self-hosted)'));
-      console.log(chalk.dim('  FIRECRAWL_API_KEY=fc-xxxxx (cloud)'));
     }
 
     // Step 4: Create first agent
