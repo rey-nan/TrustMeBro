@@ -1244,7 +1244,7 @@ export function createSetupCommand(): Command {
         // Wait for API to be ready
         const spinner = ora('Waiting for API...').start();
         let ready = false;
-        for (let i = 0; i < 60; i++) {
+        for (let i = 0; i < 30; i++) {
           await new Promise(r => setTimeout(r, 1000));
           if (await checkApiRunning()) {
             spinner.succeed('API ready!');
@@ -1255,6 +1255,29 @@ export function createSetupCommand(): Command {
 
         if (!ready) {
           spinner.fail('API failed to start');
+          
+          // Check if port is in use
+          try {
+            const { execSync: exec } = require('child_process');
+            const portCheck = exec('lsof -i :3000 2>/dev/null || netstat -ano 2>/dev/null | grep :3000 || echo "Port check not available"').toString().trim();
+            if (portCheck && !portCheck.includes('not available')) {
+              console.log(chalk.yellow('\nPort 3000 is already in use:'));
+              console.log(chalk.dim(portCheck));
+              console.log(chalk.dim('\nKill the process and run again:'));
+              console.log(chalk.cyan('  kill $(lsof -t -i:3000) 2>/dev/null; node start.js'));
+            }
+          } catch {}
+          
+          // Check log file
+          const logPath = path.join(dataDir, 'api.log');
+          if (fs.existsSync(logPath)) {
+            const lastLogs = fs.readFileSync(logPath, 'utf-8').split('\n').slice(-10).join('\n');
+            console.log(chalk.dim('\nLast logs:'));
+            console.log(chalk.dim(lastLogs));
+          }
+          
+          console.log(chalk.dim('\nYou can start the API manually:'));
+          console.log(chalk.cyan('  node start.js'));
           apiProcess.kill();
           return;
         }
