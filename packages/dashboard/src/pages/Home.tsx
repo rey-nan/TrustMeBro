@@ -454,12 +454,48 @@ export function Home() {
           animation: 'slideUp 0.4s ease',
           background: colors.surface,
         }}>
+          {/* Eye at top - small */}
+          <div 
+            onClick={() => setIsOpen(false)}
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              paddingTop: 16,
+              paddingBottom: 8,
+              cursor: 'pointer',
+              position: 'relative',
+            }}
+          >
+            <div className="meta-eye-sprite" style={{
+              width: 60,
+              height: 60,
+              backgroundImage: 'url(/eye-sprite.webp)',
+              backgroundSize: '400% 100%',
+              backgroundRepeat: 'no-repeat',
+              borderRadius: '50%',
+              WebkitMaskImage: 'radial-gradient(circle, black 40%, transparent 70%)',
+              maskImage: 'radial-gradient(circle, black 40%, transparent 70%)',
+              opacity: 0.6,
+            }} />
+            
+            {/* Fade gradient below eye */}
+            <div style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 60,
+              background: `linear-gradient(to bottom, ${colors.surface}, transparent)`,
+              pointerEvents: 'none',
+            }} />
+          </div>
+
           {/* Messages - scrollable */}
           <div ref={messagesEndRef} style={{
             flex: 1,
             overflowY: 'scroll',
             overflowX: 'hidden',
-            padding: '16px 8px 16px 0',
+            padding: '0 8px 16px 0',
           }}>
             {messages.length === 0 && (
               <p style={{
