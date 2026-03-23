@@ -62,7 +62,7 @@ export function Home() {
         pointerEvents: 'none',
       }} />
 
-      {/* Meta-Agent Eye */}
+      {/* Meta-Agent Eye with Sprite */}
       <div
         onClick={() => setIsSpeaking(!isSpeaking)}
         style={{
@@ -71,31 +71,19 @@ export function Home() {
           position: 'relative',
         }}
       >
-        <div style={{
+        {/* Eye Sprite Container */}
+        <div className="meta-eye-sprite" style={{
           width: 180,
           height: 180,
+          backgroundImage: 'url(/eye-sprite.webp)',
+          backgroundSize: '400% 100%',
+          backgroundRepeat: 'no-repeat',
           borderRadius: '50%',
-          background: `radial-gradient(circle, ${colors.primary}20 0%, transparent 70%)`,
+          WebkitMaskImage: 'radial-gradient(circle, black 40%, transparent 70%)',
+          maskImage: 'radial-gradient(circle, black 40%, transparent 70%)',
           boxShadow: `0 0 80px ${colors.primary}20`,
-          animation: 'pulseGlow 6s ease-in-out infinite',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          {/* Eye placeholder - replace with sprite when available */}
-          <div style={{
-            width: 120,
-            height: 120,
-            borderRadius: '50%',
-            background: `radial-gradient(circle at 30% 30%, ${colors.primary}40, ${colors.primary}10)`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 48,
-          }}>
-            👁
-          </div>
-        </div>
+          animation: 'eyeLife 12s steps(1) infinite',
+        }} />
       </div>
 
       {/* Identity */}
@@ -142,7 +130,7 @@ export function Home() {
                     borderRadius: 4,
                     opacity: 0.9,
                     boxShadow: `0 0 10px ${colors.primary}80`,
-                    animation: `bounce ${0.8 + i * 0.1}s infinite`,
+                    animation: `waveBar ${0.8 + i * 0.1}s infinite`,
                   }}
                 />
               ))}
@@ -209,7 +197,7 @@ export function Home() {
                 fontSize: 24,
                 border: agent.status === 'active' ? `1px solid ${agent.accentColor}60` : 'none',
                 boxShadow: agent.status === 'active' ? `0 0 15px ${agent.accentColor}40` : 'none',
-                animation: agent.status === 'active' ? `avatarPulse${agent.id} 3s ease-in-out infinite` : 'none',
+                animation: agent.status === 'active' ? `avatarPulse 3s ease-in-out infinite` : 'none',
               }}>
                 {agent.emoji}
               </div>
@@ -274,15 +262,30 @@ export function Home() {
 
       {/* CSS Animations */}
       <style>{`
-        @keyframes pulseGlow {
-          0%, 100% {
-            filter: drop-shadow(0 0 15px ${colors.primary}15);
-            opacity: 0.8;
-          }
-          50% {
-            filter: drop-shadow(0 0 50px ${colors.primary}60);
-            opacity: 1;
-          }
+        /* Eye Sprite Animation */
+        @keyframes eyeLife {
+          /* Frame 1: 0% (Open) - 80% of time */
+          0%, 80% { background-position: 0% 0%; }
+          /* Frame 2: 33.33% (Blink) */
+          82% { background-position: 33.333% 0%; }
+          84% { background-position: 0% 0%; }
+          /* Frame 3: 66.66% (Look Left) */
+          88% { background-position: 66.666% 0%; }
+          91% { background-position: 0% 0%; }
+          /* Frame 4: 100% (Look Right) */
+          94% { background-position: 100% 0%; }
+          97% { background-position: 0% 0%; }
+          /* Sudden Blink at end */
+          98% { background-position: 33.333% 0%; }
+          100% { background-position: 0% 0%; }
+        }
+
+        .meta-eye-sprite {
+          transition: box-shadow 0.3s ease;
+        }
+
+        .meta-eye-sprite:hover {
+          box-shadow: 0 0 120px rgba(0, 242, 255, 0.3) !important;
         }
         
         @keyframes pulse {
@@ -290,9 +293,18 @@ export function Home() {
           50% { opacity: 0.5; }
         }
         
-        @keyframes bounce {
+        @keyframes waveBar {
           0%, 100% { transform: scaleY(1); }
           50% { transform: scaleY(1.5); }
+        }
+
+        @keyframes avatarPulse {
+          0%, 100% {
+            box-shadow: 0 0 10px rgba(74, 225, 118, 0.2);
+          }
+          50% {
+            box-shadow: 0 0 25px rgba(74, 225, 118, 0.5);
+          }
         }
       `}</style>
     </div>
