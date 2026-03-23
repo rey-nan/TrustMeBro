@@ -31,13 +31,17 @@ const DEPT_COLORS: Record<string, string> = {
 
 // Simple markdown renderer
 function renderMarkdown(text: string): string {
-  return text
-    // Remove system tags first
+  // Remove ALL XML-like tags first
+  let clean = text
     .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/gi, '')
     .replace(/<apicall>[\s\S]*?<\/apicall>/gi, '')
     .replace(/<api_call>[\s\S]*?<\/api_call>/gi, '')
     .replace(/<api_result>[\s\S]*?<\/api_result>/gi, '')
     .replace(/<api_error>[\s\S]*?<\/api_error>/gi, '')
+    .replace(/<[^>]+>/g, '') // Remove any remaining HTML/XML tags
+    .trim();
+  
+  return clean
     // Code blocks
     .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre style="background:#131313;padding:8px;border-radius:4px;margin:8px 0;overflow-x:auto;font-size:12px"><code>$2</code></pre>')
     // Inline code
@@ -166,9 +170,9 @@ export function Home() {
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      minHeight: 'calc(100vh - 180px)',
+      height: '100%',
       position: 'relative',
-      overflow: 'hidden',
+      overflow: isOpen ? 'hidden' : 'visible',
     }}>
       {/* Ambient Glow */}
       <div className="ambient-glow" style={{
@@ -404,19 +408,19 @@ export function Home() {
         <div style={{
           width: '100%',
           maxWidth: 500,
-          flex: 1,
+          height: '100%',
           display: 'flex',
           flexDirection: 'column',
           zIndex: 10,
           animation: 'slideUp 0.4s ease',
         }}>
-          {/* Messages */}
+          {/* Messages - scrollable */}
           <div style={{
             flex: 1,
             overflowY: 'auto',
+            overflowX: 'hidden',
             padding: '16px 0',
-            minHeight: 200,
-            maxHeight: 'calc(100vh - 400px)',
+            minHeight: 0,
           }}>
             {messages.length === 0 && (
               <p style={{
